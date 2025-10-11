@@ -1,0 +1,87 @@
+Left-off Checkpoint — Smart Contract Testing Complete
+Date: 2025-08-13
+
+Project state
+- Frontend (Vite/React): http://localhost:8080
+- Backend (Express/TS): http://127.0.0.1:5050 (PORT=5050)
+- DB (PostgreSQL): localhost:5000
+- Smart contracts (Hardhat + ethers v6) located at: smart-contracts/
+  • Compiled successfully with Solidity 0.8.24
+  • Contracts: MilestoneEscrow.sol, NexaFundWeighted.sol
+  • Tests added and passing: test/NexaFundWeighted.spec.ts, test/MilestoneEscrow.spec.ts
+
+Goal
+- Run and pass automated tests for both contracts. Validate local REPL flow for NexaFundWeighted. Prepare for optional testnet.
+
+How to resume and test locally (persistent node)
+1) Start a local node (Terminal A)
+   cd "Nexa-Fund\\smart-contracts"
+   npx hardhat node
+
+2) Deploy to the local node (Terminal B)
+   cd "Nexa-Fund\\smart-contracts"
+   npx hardhat run --network localhost scripts/deploy_weighted.ts
+   → Copy the printed contract address
+
+3) Interact via console (Terminal B)
+   npx hardhat console --network localhost
+   // Paste the following (replace ADDRESS)
+   const addr = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
+   const [admin, b1, b2] = await ethers.getSigners();
+   const c = await ethers.getContractAt("NexaFundWeighted", addr);
+
+   // Fund with stake power (milestone 0 needs 3 ETH total balance)
+   await c.connect(b1).contribute({ value: ethers.parseEther("3.0") });
+   await c.connect(b2).contribute({ value: ethers.parseEther("1.0") });
+
+   // Open vote window for milestone 0 (start strictly in the future)
+   let nowTs = (await ethers.provider.getBlock("latest")).timestamp;
+   let startTs = BigInt(nowTs) + 120n;
+   let endTs = startTs + 3600n;
+   await c.openVoting(0, startTs, endTs);
+
+   // Vote yes (weighted by contribution)
+   await network.provider.send("evm_setNextBlockTimestamp", [Number(startTs + 1n)]);
+   await network.provider.send("evm_mine");
+   await c.connect(b1).voteMilestone(0, true);
+
+   // Check if released
+   (await c.getMilestone(0))[2]  // true means funds released to creator
+
+Notes
+- Always quote the contract address in the console: const addr = "0x...";
+- With ethers v6, parseEther returns bigint; use bigint for arithmetic (e.g., goal/10n).
+- The ephemeral “hardhat” network is per process; use “localhost” for persistent testing with npx hardhat node.
+- Default deploy script uses GOAL_ETH=10; min quorum is 10% of goal. Ensure enough voting power is cast.
+- Common errors and fixes:
+  • BAD_WINDOW → choose a start time strictly in future; add 60–600s buffer
+  • NOT_IN_WINDOW → advance time with evm_setNextBlockTimestamp + evm_mine
+  • INSUFFICIENT → top-up using contribute() until balance ≥ milestone amount
+  • EADDRINUSE on node → a node is already running; reuse or kill the PID
+
+Optional — testnet (Polygon Amoy)
+1) Get Amoy test MATIC from the Polygon faucet
+2) smart-contracts/.env (example)
+   PRIVATE_KEY=0xYOUR_PRIVATE_KEY
+   AMOY_RPC_URL=https://rpc-amoy.polygon.technology
+   CAMPAIGN_OWNER=0xYOUR_WALLET
+   GOAL_ETH=10
+   MS_DESCRIPTIONS=Setup,Build,Launch
+   MS_AMOUNTS_ETH=3,3,4
+3) Deploy: npx hardhat run --network polygonAmoy scripts/deploy_weighted.ts
+
+Automated Tests (run anytime)
+1) From project root terminal:
+   cd "Nexa-Fund\\smart-contracts"
+   npm install
+   npx hardhat test
+   // Both suites should pass:
+   //  - test/NexaFundWeighted.spec.ts
+   //  - test/MilestoneEscrow.spec.ts
+
+Next integration steps (after local test)
+- Backend: store contract address on campaign creation; endpoints for contribute/openVoting/finalize/adminRelease/cancel/refund
+- Frontend: wallet connect, contribute() with value, vote UI, on-chain status display
+
+This is the checkpoint. Resume here to test the smart contract.
+

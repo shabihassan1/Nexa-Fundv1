@@ -1,0 +1,112 @@
+ethers.formatEther(bal)
+ethers.formatEther(m1[1])
+ethers.formatEther(m1[1])ethers.formatEther(bal)
+(await c.getMilestone(1))[2]
+await c.adminRelease(1);
+if (bal < m1[1]) {  const needWei = m1[1] - bal;  await c.connect(b1).contribute({ value: needWei });}
+bal               // current wei
+const bal = await ethers.provider.getBalance(addr);
+m1[2]            // should be false
+m1[1]            // required wei for milestone 1
+const m1 = await c.getMilestone(1);
+await c.adminRelease(1)
+(await c.getMilestone(1))[2]
+await c.connect(b1).voteMilestone(1, true);(await c.getMilestone(1))[2]
+await network.provider.send("evm_setNextBlockTimestamp", [Number(s7 + 1n)]);await network.provider.send("evm_mine");
+const t7 = (await ethers.provider.getBlock("latest")).timestamp;const s7 = BigInt(t7) + 60n;const e7 = s7 + 3600n;await c.openVoting(1, s7, e7);
+.break
+await c.connect(b1).contribute({ value: ethers.par
+const t6 = (await ethers.provider.getBlock("latest")).timestamp;const s6 = BigInt(t6) + 60n;const e6 = s6 + 3600n;await c.openVoting(1, s6, e6);
+await c.openVoting(1, s6, e6);
+const e6 = s6 + 3600n;
+const s6 = BigInt(t6) + 60n;
+const t6 = (await ethers.provider.getBlock("latest")).timestamp;
+// open voting for milestone 1const t5 = (await ethers.provider.getBlock("latest")).timestamp;const s5 = BigInt(t5) + 60n;const e5 = s5 + 3600n;await c.openVoting(1, s5, e5);
+await c.connect(b1).contribute({ value: ethers.par
+await c.creator()
+await ethers.provider.getBalance(addr)
+(await c.getMilestone(0))[2]
+(await ethers.provider.getBlock("latest")).timestamps3e3
+(await c.getMilestone(0))[2]
+await c.connect(b1).voteMilestone(0, true);
+await network.provider.send("evm_mine");
+await network.provider.send("evm_setNextBlockTimestamp", [Number(s3 + 1n)]);
+await c.openVoting(0, s3, e3)
+const e3 = s3 + 3600n;
+const s3 = BigInt(t3) + 300n;   // start in 5 minutes
+const t3 = (await ethers.provider.getBlock("latest")).timestamp;
+(await ethers.provider.getBlock("latest")).timestamp
+await c.openVoting(0, s2, e2);
+const e2 = s2 + 3600n;            // 1 hour window
+const s2 = BigInt(t2) + 60n;      // start in 60s
+const t2 = (await ethers.provider.getBlock("latest")).timestamp;
+const t = (await ethers.provider.getBlock("latest")).timestamp;const start = BigInt(t) + 60n;   // buffer 60sconst end = start + 3600n;await c.openVoting(0, start, end);await network.provider.send("evm_setNextBlockTimestamp", [Number(start + 1n)]);await network.provider.send("evm_mine");await c.connect(b1).voteMilestone(0, true);(await c.getMilestone(0))[2]     // expect true
+const now = (await ethers.provider.getBlock("latest")).timestamp;const start = BigInt(now) + 60n;     // buffer 60sconst end = start + 3600n;           // 1 hour windowawait c.openVoting(0, start, end);
+const now = (await ethers.provider.getBlock("latest")).timestamp;const start = BigInt(now + 2);const end = start + 3600n;await c.openVoting(0, start, end);
+await c.connect(b1).contribute({ value: ethers.parseEther("3.0") });await c.connect(b2).contribute({ value: ethers.parseEther("1.0") });
+await c.connect(b1).contribute({ value: ethers.par value: ethers.parseEther("1.0") });
+await c.connect(b1).contribute({ value: ethers.parawait c.connect(b2).contribute(
+.break
+await c.connect(b1).contribute({ value: ethers.parawait c.connect(b2).contribute(
+await c.connect(b1).contribute({ value: etawait c.connect(b2).con
+// fund
+{ value: ethers.parseEther("1.0") });
+await c.connect(b1).contribute({ value: ethers.parawait c.connect(b2).contribute(
+await c.connect(b2).contribute({ value: ethers.parseEther("1.0") });
+await c.connect(b1).contribute({ value: ethers.par
+const c = await ethers.getContractAt("NexaFundWeighted", addr);
+const [admin, b1, b2] = await ethers.getSigners();
+await ethers.provider.getCode(addr)
+const addr = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
+await ethers.provider.getCode(addr)  // should NOT be "0x"
+const addr = "0x5fbdB2315678afecb367f032d93F642f64180aa3"; // replace if yours differs
+(await c.getMilestone(0))[2]
+// Check released flag
+await c.connect(b2).voteMilestone(0, true);
+await c.connect(b1).voteMilestone(0, true);
+// Vote yes from both backers (weighted by contribution)
+await network.provider.send("evm_mine");
+await network.provider.send("evm_setNextBlockTimestamp", [Number(start)]);
+// Move time into the voting window
+await c.openVoting(0, start, end);
+const end = start + 3600n;
+const start = BigInt(now + 2);
+const now = (await ethers.provider.getBlock("latest")).timestamp;
+// Open a voting window for milestone 0
+await c.connect(b2).contribute({ value: ethers.parseEther("1.0") });
+await c.connect(b1).contribute({ value: ethers.parseEther("3.0") });
+// Contribute enough to cover milestone 0 (3 ETH)
+const c = await ethers.getContractAt("NexaFundWei
+const [admin, b1, b2] = await ethers.getSigners();
+const addr = "0x5fbdB2315678afecb367f032d93F642f64180aa3";
+const addr =0x5fbdB2315678afecb367f032d93F642f64180aa3;
+const addr = "0x5fbdB2315678afecb367f032d93F642f64180aa3";
+await ethers.provider.getCode(addr)  // should NOT be "0x"
+(await c.getMilestone(0))[2]
+await c.connect(b2).voteMilestone(0, true);
+await c.connect(b1).voteMilestone(0, true);
+await c.openVoting(0, BigInt(now + 1), BigInt(now + 3600));
+const now = (await ethers.provider.getBlock("latest")).timestamp;
+await c.connect(b2).contribute({ value: ethers.parseEther("0.5") });
+await c.connect(b1).contribute({ value: ethers.parseEther("1.0") });
+const c = await ethers.getContractAt("NexaFundWeighted", addr);
+const [admin, b1, b2] = await ethers.getSigners();
+const addr =  0x3a50a30d0f7233eef4a6163b556d397f7889df8685d01785d2d24f0e75bb9c50;
+(await c.getMilestone(0))[2]
+await c.connect(b2).voteMilestone(0, true);
+await c.connect(b1).voteMilestone(0, true);
+const now = (await ethers.provider.getBawait c.openVoting(0, BigInt(now + 1), BigInt(now + 3600));
+connect(b2).contribute({ value: ethers.parseEther("0.5") });
+await c.
+const c = await ethers.getContractAt("Nexawait c.connect(b1).contribute({ value: ethers.parseEther("1.0") });
+const [admin, b1, b2] = await ethers.getSigners();
+(await c.getMilestone(0))[2]
+await c.connect(b2).voteMilestone(0, true);
+await c.connect(b1).voteMilestone(0, true);
+await c.openVoting(0, BigInt(now + 1), BigInt(now + 3600));
+const now = (await ethers.provider.getBlock("latest")).timestamp;
+await c.connect(b2).contribute({ value: ethers.parseEther("0.5") });
+await c.connect(b1).contribute({ value: ethers.parseEther("1.0") });
+const c = await ethers.getContractAt("NexaFundWeighted", addr);
+const [admin, b1, b2] = await ethers.getSigners();
+const addr = 0x5FbDB2315678afecb367f032d93F642f64180aa3 ;

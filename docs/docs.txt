@@ -1,0 +1,70 @@
+Here are the essential documentation links for the project:
+Backend Documentation
+Express.js
+Express.js Official Documentation
+Express.js API Reference
+Express.js Security Best Practices
+Prisma
+Prisma Documentation
+Prisma Schema Reference
+Prisma Client API
+TypeScript
+TypeScript Documentation
+TypeScript with Node.js
+Testing
+Jest Documentation
+Supertest Documentation
+Testing Express.js with Jest
+PostgreSQL
+PostgreSQL Documentation
+Node-Postgres Documentation
+Frontend Documentation
+React + TypeScript
+React Documentation
+React TypeScript Documentation
+Create React App with TypeScript
+Tailwind CSS
+Tailwind CSS Documentation
+Tailwind CSS with React
+Testing
+React Testing Library
+Jest with React
+Development Tools
+Environment & Configuration
+dotenv Documentation
+Cross-env Documentation
+Security
+Helmet.js Documentation
+CORS Documentation
+Express Rate Limit
+Logging & Monitoring
+Morgan Documentation
+Winston Documentation
+API Documentation Tools
+Swagger UI Documentation
+OpenAPI Specification
+Deployment & CI/CD
+GitHub Actions Documentation
+Docker Documentation
+Vercel Documentation (if using Vercel)
+Heroku Documentation (if using Heroku)
+Code Quality & Style Guides
+ESLint Documentation
+Prettier Documentation
+Husky Documentation
+Blockchain Integration
+Web3.js Documentation
+Ethers.js Documentation
+MetaMask Documentation
+Version Control
+Git Documentation
+GitHub Documentation
+These documentation resources will help in:
+Setting up the development environment
+Understanding best practices
+Implementing features correctly
+Troubleshooting issues
+Following security guidelines
+Maintaining code quality
+Deploying the application
+Would you like me to provide more specific documentation links for any particular aspect of the project?

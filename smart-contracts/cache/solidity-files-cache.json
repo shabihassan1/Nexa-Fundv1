@@ -1,0 +1,77 @@
+{
+  "_format": "hh-sol-cache-2",
+  "files": {
+    "C:\\Users\\User\\OneDrive\\Desktop\\The NexaFund\\Nexa-Fund\\smart-contracts\\contracts\\MilestoneEscrow.sol": {
+      "lastModificationDate": 1754923180761,
+      "contentHash": "5040e573ce719c111ed32a18f4281736",
+      "sourceName": "contracts/MilestoneEscrow.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.24"
+      ],
+      "artifacts": [
+        "MilestoneEscrow"
+      ]
+    },
+    "C:\\Users\\User\\OneDrive\\Desktop\\The NexaFund\\Nexa-Fund\\smart-contracts\\contracts\\NexaFundWeighted.sol": {
+      "lastModificationDate": 1754925187579,
+      "contentHash": "bc93ed31c8ec39d22b8b43f6de15a423",
+      "sourceName": "contracts/NexaFundWeighted.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.24"
+      ],
+      "artifacts": [
+        "NexaFundWeighted"
+      ]
+    }
+  }
+}

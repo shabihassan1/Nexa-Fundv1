@@ -1,0 +1,128 @@
+# NexaFund Environment Variables Setup Guide
+# ===========================================
+# 
+# This file contains all the environment variables needed to run the NexaFund project.
+# Copy the relevant sections to create your .env files in each directory.
+#
+# IMPORTANT: Never commit actual .env files with real values to version control!
+# This template is safe to commit as it contains only placeholder values.
+#
+# ===========================================
+# BACKEND ENVIRONMENT VARIABLES (.env in backend/ directory)
+# ===========================================
+
+# Server Configuration
+NODE_ENV=development
+PORT=5000
+
+# Database Configuration (PostgreSQL)
+# Replace with your actual database connection string
+DATABASE_URL="postgresql://username:password@localhost:5432/nexafund_db"
+
+# JWT Authentication
+# Generate a strong secret key (use: openssl rand -base64 32)
+JWT_SECRET="your-super-secret-jwt-key-here-make-it-long-and-random"
+JWT_EXPIRES_IN="7d"
+
+# Frontend URL (for CORS)
+FRONTEND_URL="http://localhost:8080"
+
+# Rate Limiting
+RATE_LIMIT_WINDOW_MS=900000
+RATE_LIMIT_MAX=100
+
+# ===========================================
+# FRONTEND ENVIRONMENT VARIABLES (.env in frontend/ directory)
+# ===========================================
+
+# Backend API URL
+# Change this to your backend server URL
+VITE_API_URL="http://localhost:5000"
+
+# ===========================================
+# SMART CONTRACTS ENVIRONMENT VARIABLES (.env in smart-contracts/ directory)
+# ===========================================
+
+# Private Key for Deployment (NEVER share this!)
+# Get from MetaMask: Account Details > Export Private Key
+PRIVATE_KEY="0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
+
+# Polygon Amoy Testnet RPC URL
+# You can use the default or get a free one from Alchemy/Infura
+AMOY_RPC_URL="https://rpc-amoy.polygon.technology/"
+
+# Campaign Owner Address (where funds will be sent)
+# This should be the address that will receive the campaign funds
+CAMPAIGN_OWNER="0x1234567890123456789012345678901234567890"
+
+# Platform Admin Address (has special permissions in smart contracts)
+# This should be your platform's admin wallet address
+PLATFORM_ADMIN="0x1234567890123456789012345678901234567890"
+
+# ===========================================
+# SETUP INSTRUCTIONS
+# ===========================================
+#
+# 1. BACKEND SETUP:
+#    - Navigate to backend/ directory
+#    - Create a .env file
+#    - Copy the backend section above
+#    - Replace placeholder values with your actual values
+#    - Install dependencies: npm install
+#    - Run database migrations: npx prisma migrate dev
+#    - Start server: npm run dev
+#
+# 2. FRONTEND SETUP:
+#    - Navigate to frontend/ directory
+#    - Create a .env file
+#    - Copy the frontend section above
+#    - Replace VITE_API_URL with your backend URL
+#    - Install dependencies: npm install
+#    - Start development server: npm run dev
+#
+# 3. SMART CONTRACTS SETUP:
+#    - Navigate to smart-contracts/ directory
+#    - Create a .env file
+#    - Copy the smart contracts section above
+#    - Replace placeholder values with your actual values
+#    - Install dependencies: npm install
+#    - Compile contracts: npx hardhat compile
+#    - Deploy locally: npm run deploy:local
+#    - Deploy to testnet: npm run deploy:amoy
+#
+# ===========================================
+# SECURITY NOTES
+# ===========================================
+#
+# - Never commit .env files to version control
+# - Use strong, unique passwords and secrets
+# - Keep your private keys secure and never share them
+# - Use testnet for development, mainnet only for production
+# - Regularly rotate your JWT secrets in production
+# - Use environment-specific database URLs
+#
+# ===========================================
+# PRODUCTION CONSIDERATIONS
+# ===========================================
+#
+# For production deployment:
+# - Use a production database (PostgreSQL on cloud)
+# - Set NODE_ENV=production
+# - Use HTTPS URLs for FRONTEND_URL and VITE_API_URL
+# - Use a secure JWT secret (32+ characters)
+# - Set up proper CORS policies
+# - Use environment variables from your hosting platform
+# - Consider using a secrets management service
+#
+# ===========================================
+# TROUBLESHOOTING
+# ===========================================
+#
+# Common issues:
+# 1. Database connection failed: Check DATABASE_URL format
+# 2. JWT errors: Ensure JWT_SECRET is set and consistent
+# 3. CORS errors: Check FRONTEND_URL matches your frontend domain
+# 4. Smart contract deployment fails: Check PRIVATE_KEY and RPC_URL
+# 5. Frontend can't connect to backend: Check VITE_API_URL
+#
+# ===========================================

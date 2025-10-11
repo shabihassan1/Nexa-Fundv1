@@ -1,0 +1,334 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          String   @id @default(cuid())
+  walletAddress String @unique
+  email       String?  @unique
+  password    String?
+  name        String?
+  bio         String?
+  isVerified  Boolean  @default(false)
+  role        UserRole @default(USER)
+  status      UserStatus @default(ACTIVE)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  campaignsCreated Campaign[]
+  contributions    Contribution[]
+  votes           Vote[]
+  reports         Report[]
+  userPermissions UserPermission[]
+  updates         Update[]
+
+  @@map("users")
+}
+
+model Permission {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  category    String?
+  createdAt   DateTime @default(now())
+
+  // Relations
+  rolePermissions RolePermission[]
+  userPermissions UserPermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  id           String     @id @default(cuid())
+  role         UserRole
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  permissionId String
+  createdAt    DateTime   @default(now())
+
+  @@unique([role, permissionId])
+  @@map("role_permissions")
+}
+
+model UserPermission {
+  id           String     @id @default(cuid())
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId       String
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  permissionId String
+  granted      Boolean    @default(true) // true = granted, false = revoked
+  grantedAt    DateTime   @default(now())
+  revokedAt    DateTime?
+
+  @@unique([userId, permissionId])
+  @@map("user_permissions")
+}
+
+model Campaign {
+  id            String   @id @default(cuid())
+  title         String
+  description   String
+  story         String?
+  additionalMedia Json?
+  imageUrl      String?
+  targetAmount  Float
+  currentAmount Float    @default(0)
+  escrowAmount  Float    @default(0) // Amount held in escrow
+  releasedAmount Float   @default(0) // Amount released to creator
+  category      String
+  status        CampaignStatus @default(PENDING)
+  riskScore     Float?   @default(0)
+  isFraudulent  Boolean  @default(false)
+  requiresMilestones Boolean @default(false) // Auto-calculated based on target amount
+  startDate     DateTime
+  endDate       DateTime
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  creator       User     @relation(fields: [creatorId], references: [id])
+  creatorId     String
+  milestones    Milestone[]
+  contributions Contribution[]
+  reports       Report[]
+  rewardTiers   RewardTier[]
+  escrowTransactions EscrowTransaction[]
+  updates       Update[]
+
+  @@map("campaigns")
+}
+
+model RewardTier {
+  id            String   @id @default(cuid())
+  title         String
+  description   String
+  minimumAmount Float
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  campaign      Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  campaignId    String
+  contributions Contribution[]
+
+  @@map("reward_tiers")
+}
+
+model Milestone {
+  id          String   @id @default(cuid())
+  title       String
+  description String
+  amount      Float
+  order       Int      // Order of milestone (1, 2, 3, etc.)
+  status      MilestoneStatus @default(PENDING)
+  deadline    DateTime
+  submittedAt DateTime?
+  approvedAt  DateTime?
+  rejectedAt  DateTime?
+  evidence    Json?    // Store evidence/proof data (files, links, descriptions)
+  adminNotes  String?  // Admin feedback/notes
+  votesFor    Int      @default(0)
+  votesAgainst Int     @default(0)
+  votingDeadline DateTime? // When voting period ends
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  campaign    Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  campaignId  String
+  votes       Vote[]
+  submissions MilestoneSubmission[]
+  escrowTransactions EscrowTransaction[]
+
+  @@map("milestones")
+}
+
+model MilestoneSubmission {
+  id          String   @id @default(cuid())
+  evidence    Json     // Evidence submitted by creator
+  description String
+  submittedAt DateTime @default(now())
+  status      SubmissionStatus @default(PENDING)
+  
+  // Relations
+  milestone   Milestone @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
+  milestoneId String
+  
+  @@map("milestone_submissions")
+}
+
+model EscrowTransaction {
+  id            String   @id @default(cuid())
+  amount        Float
+  type          EscrowTransactionType
+  description   String
+  status        TransactionStatus @default(PENDING)
+  executedBy    String?  // User ID who executed the transaction
+  executedAt    DateTime?
+  createdAt     DateTime @default(now())
+  
+  // Relations
+  campaign      Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  campaignId    String
+  milestone     Milestone? @relation(fields: [milestoneId], references: [id], onDelete: SetNull)
+  milestoneId   String?
+  
+  @@map("escrow_transactions")
+}
+
+model Contribution {
+  id            String   @id @default(cuid())
+  amount        Float
+  transactionHash String @unique
+  blockNumber   Int?
+  status        ContributionStatus @default(CONFIRMED)
+  isEscrowed    Boolean  @default(true) // Whether funds go to escrow
+  createdAt     DateTime @default(now())
+
+  // Relations
+  user          User     @relation(fields: [userId], references: [id])
+  userId        String
+  campaign      Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  campaignId    String
+  rewardTier    RewardTier? @relation(fields: [rewardTierId], references: [id])
+  rewardTierId  String?
+
+  @@map("contributions")
+}
+
+model Vote {
+  id         String   @id @default(cuid())
+  isApproval Boolean  // true for approve, false for reject
+  comment    String?  // Optional comment from voter
+  votingPower Float   @default(1) // Based on contribution amount
+  createdAt  DateTime @default(now())
+
+  // Relations
+  user        User      @relation(fields: [userId], references: [id])
+  userId      String
+  milestone   Milestone @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
+  milestoneId String
+
+  // A user can only vote once per milestone
+  @@unique([userId, milestoneId])
+  @@map("votes")
+}
+
+model Report {
+  id          String   @id @default(cuid())
+  reason      String
+  description String
+  status      ReportStatus @default(PENDING)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  reporter    User     @relation(fields: [reporterId], references: [id])
+  reporterId  String
+  campaign    Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  campaignId  String
+
+  @@map("reports")
+}
+
+model Update {
+  id          String   @id @default(cuid())
+  title       String
+  content     String   @db.Text
+  imageUrl    String?  // Optional image for the update
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  campaign    Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  campaignId  String
+  creator     User     @relation(fields: [creatorId], references: [id])
+  creatorId   String
+
+  @@map("updates")
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  ADMIN
+  MODERATOR
+  CREATOR
+  BACKER
+  USER
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  BANNED
+  PENDING_VERIFICATION
+}
+
+enum CampaignStatus {
+  PENDING
+  APPROVED
+  ACTIVE
+  PAUSED
+  COMPLETED
+  CANCELLED
+  FLAGGED
+  MILESTONE_REVIEW // Campaign under milestone review
+}
+
+enum ReportStatus {
+  PENDING
+  UNDER_REVIEW
+  RESOLVED
+  DISMISSED
+}
+
+enum MilestoneStatus {
+  PENDING      // Awaiting creator submission
+  SUBMITTED    // Submitted by creator, awaiting review
+  VOTING       // Under community voting
+  APPROVED     // Approved and funds released
+  REJECTED     // Rejected, needs resubmission
+  EXPIRED      // Deadline passed without completion
+  DISPUTED     // Under admin review
+}
+
+enum SubmissionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  NEEDS_REVISION
+}
+
+enum EscrowTransactionType {
+  DEPOSIT      // Funds deposited to escrow
+  RELEASE      // Funds released to creator
+  REFUND       // Funds refunded to backers
+  ADMIN_HOLD   // Admin hold on funds
+}
+
+enum TransactionStatus {
+  PENDING
+  CONFIRMED
+  FAILED
+  CANCELLED
+}
+
+enum ContributionStatus {
+  PENDING
+  CONFIRMED
+  FAILED
+  REFUNDED
+}
