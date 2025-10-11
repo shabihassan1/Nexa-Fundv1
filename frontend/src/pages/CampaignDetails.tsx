@@ -1,5 +1,7 @@
 import { useParams, Link, useNavigate, useLocation } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import WalletConnect from "@/components/WalletConnect";
@@ -647,9 +649,19 @@ const CampaignDetails = () => {
               {selectedTab === 'story' && (
                 <div className="prose max-w-none space-y-8">
                   <div className="bg-white rounded-lg p-6">
-                    <h2 className="text-2xl font-bold mb-4">Project Story</h2>
-                    <div className="space-y-4 text-gray-700 leading-relaxed">
-                      <p>{campaign.story || campaign.description}</p>
+                    <h2 className="text-2xl font-bold mb-6">Project Story</h2>
+                    <div className="prose prose-lg max-w-none text-gray-700 leading-relaxed
+                      [&>h2]:text-2xl [&>h2]:font-bold [&>h2]:mt-6 [&>h2]:mb-3 [&>h2]:text-gray-900
+                      [&>h3]:text-xl [&>h3]:font-semibold [&>h3]:mt-4 [&>h3]:mb-2 [&>h3]:text-gray-800
+                      [&>p]:mb-4 [&>p]:leading-7
+                      [&>ul]:list-disc [&>ul]:ml-6 [&>ul]:mb-4
+                      [&>ol]:list-decimal [&>ol]:ml-6 [&>ol]:mb-4
+                      [&>li]:mb-2
+                      [&>strong]:font-semibold [&>strong]:text-gray-900
+                      [&>em]:italic">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {campaign.story || campaign.description}
+                      </ReactMarkdown>
                     </div>
                   </div>
 
