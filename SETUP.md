@@ -47,6 +47,13 @@ npm run dev
 
 ✅ Frontend running on http://localhost:8080
 
+### Step 4: MetaMask & Wallet Setup (5 minutes)
+
+See **[docs/Wallet-Setup.md](docs/Wallet-Setup.md)** for:
+- Adding NexaFund VTN network to MetaMask
+- Getting test POL tokens
+- Funding test wallets
+
 ---
 
 ## 🔑 Test Accounts

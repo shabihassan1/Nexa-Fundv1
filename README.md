@@ -42,6 +42,11 @@ npm run dev
 - Email: `superadmin@nexafund.com`
 - Password: `Test@123`
 
+### 5. MetaMask Wallet (Optional - for blockchain features)
+**Wallet Setup:** See [docs/Wallet-Setup.md](docs/Wallet-Setup.md)
+- Add NexaFund VTN network to MetaMask
+- Fund test wallets with POL tokens
+
 ---
 
 ## ✨ Key Features
