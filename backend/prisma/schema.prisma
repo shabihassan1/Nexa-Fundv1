@@ -88,6 +88,7 @@ model Campaign {
   currentAmount Float    @default(0)
   escrowAmount  Float    @default(0) // Amount held in escrow
   releasedAmount Float   @default(0) // Amount released to creator
+  contractAddress String? // Smart contract address for on-chain escrow
   category      String
   status        CampaignStatus @default(PENDING)
   riskScore     Float?   @default(0)
