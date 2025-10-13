@@ -6,6 +6,7 @@ import rewardTierRoutes from './rewardTier.routes';
 import contributionRoutes from './contribution.routes';
 import userRoutes from './user.routes';
 import updateRoutes from './update.routes';
+import recommenderRoutes from './recommender.routes';
 import { uploadImage } from '../controllers/upload.controller';
 
 const router = Router();
@@ -43,6 +44,10 @@ console.log('✅ User routes registered');
 // Register update routes
 router.use('/', updateRoutes);
 console.log('✅ Update routes registered');
+
+// Register recommender proxy routes
+router.use('/recommender', recommenderRoutes);
+console.log('✅ Recommender routes registered');
 
 console.log('🎉 All API routes registered successfully');
 

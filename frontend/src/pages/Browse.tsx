@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -8,10 +8,13 @@ import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
 import { fetchCampaigns } from "@/services/campaignService";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useAuth } from "@/contexts/AuthContext";
+import { fetchRecommendations } from "@/services/recommenderService";
 
 const Browse = () => {
   const [selectedCategory, setSelectedCategory] = useState("All Categories");
   const [searchQuery, setSearchQuery] = useState("");
+  const { user, isAuthenticated } = useAuth();
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['campaigns'],
@@ -20,16 +23,71 @@ const Browse = () => {
 
   // Ensure campaigns is an array before filtering
   const campaigns = Array.isArray(data?.campaigns) ? data?.campaigns : [];
-
-  // Filter campaigns based on selected category and search query
-  const filteredCampaigns = campaigns.filter((campaign) => {
-    const matchesCategory = selectedCategory === "All Categories" || campaign.category === selectedCategory;
-    const matchesSearch = campaign.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                         campaign.description.toLowerCase().includes(searchQuery.toLowerCase());
-    // Additional check to ensure only active campaigns are shown (defense in depth)
-    const isActive = campaign.status === 'ACTIVE';
-    return matchesCategory && matchesSearch && isActive;
+  
+  // Recommendations query (only when logged in)
+  const { data: recosData } = useQuery({
+    queryKey: ['recommendations', user?.id, user?.bio],
+    queryFn: async () => {
+      if (!isAuthenticated || !user?.id) return null;
+      const result = await fetchRecommendations({ donor_id: user.id, top_k: 50 });
+      return result;
+    },
+    enabled: isAuthenticated && !!user?.id,
   });
+
+  // Map recommendation order for sorting
+  const recommendedOrder = useMemo(() => {
+    const order = new Map<string, number>();
+    console.log('🔍 Recommendations data:', recosData);
+    if (Array.isArray(recosData?.data)) {
+      console.log('📊 Recommendations array:', recosData.data);
+      recosData.data.forEach((r: any, idx: number) => {
+        console.log(`🎯 Recommendation ${idx}:`, r);
+        order.set(r.campaign_id, idx);
+      });
+    }
+    console.log('🗺️ Recommended order map:', order);
+    return order;
+  }, [recosData]);
+
+  // Filter (search/category) then apply recommendation logic
+  const filteredCampaigns = useMemo(() => {
+    const byFilter = campaigns.filter((campaign) => {
+      const matchesCategory = selectedCategory === "All Categories" || campaign.category === selectedCategory;
+      const matchesSearch = campaign.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                           campaign.description.toLowerCase().includes(searchQuery.toLowerCase());
+      const isActive = campaign.status === 'ACTIVE';
+      return matchesCategory && matchesSearch && isActive;
+    });
+
+    console.log('🔍 Filtered campaigns:', byFilter.length);
+    console.log('👤 Is authenticated:', isAuthenticated);
+    console.log('📊 Recommended order size:', recommendedOrder.size);
+
+    if (!isAuthenticated || recommendedOrder.size === 0) {
+      console.log('⚠️ No recommendations, showing all campaigns');
+      return byFilter;
+    }
+
+    // Keep only recommended campaigns (based on user interest)
+    const recommendedOnly = byFilter.filter(c => {
+      const hasRecommendation = recommendedOrder.has(c.id);
+      console.log(`🎯 Campaign ${c.id} (${c.title}) has recommendation:`, hasRecommendation);
+      return hasRecommendation;
+    });
+    
+    console.log('✅ Recommended campaigns found:', recommendedOnly.length);
+    
+    if (recommendedOnly.length === 0) {
+      console.log('⚠️ No recommended campaigns match filters, showing all');
+      return byFilter; // Fallback if no overlap
+    }
+    
+    // Sort by recommendation rank
+    recommendedOnly.sort((a, b) => (recommendedOrder.get(a.id)! - recommendedOrder.get(b.id)!));
+    console.log('📋 Final sorted campaigns:', recommendedOnly.map(c => c.title));
+    return recommendedOnly;
+  }, [campaigns, selectedCategory, searchQuery, isAuthenticated, recommendedOrder]);
 
   const renderSkeletons = () => {
     return Array(6).fill(0).map((_, i) => (
