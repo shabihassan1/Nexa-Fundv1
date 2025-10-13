@@ -11,6 +11,7 @@ import { useWallet } from '@/contexts/WalletContext';
 import { toast } from '@/hooks/use-toast';
 import { createContribution } from '@/services/contributionService';
 import { ethers } from 'ethers';
+import { getNativeCurrencySymbol } from '@/lib/web3';
 
 interface Campaign {
   id: string;
@@ -42,6 +43,9 @@ const BackingModal = ({ isOpen, onClose, campaign, onContributionSuccess }: Back
   const [amount, setAmount] = useState<string>('');
   const [selectedRewardTier, setSelectedRewardTier] = useState<RewardTier | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Get native currency symbol (POL for Tenderly VTN)
+  const currencySymbol = getNativeCurrencySymbol();
 
   // Check if user is trying to back their own campaign
   const isSelfBacking = user?.id === campaign.creatorId;
@@ -164,6 +168,7 @@ const BackingModal = ({ isOpen, onClose, campaign, onContributionSuccess }: Back
         1337,     // Ganache/Local development
         31337,    // Hardhat local development
         1338,     // Elysium Testnet
+        73571,    // Tenderly Virtual TestNet (NexaFund VTN)
       ];
       
       if (wallet.chainId && !supportedNetworks.includes(wallet.chainId)) {
@@ -172,6 +177,7 @@ const BackingModal = ({ isOpen, onClose, campaign, onContributionSuccess }: Back
           description: `Please switch to a supported network. Current network: ${wallet.chainId}`,
           variant: "destructive",
         });
+        setIsSubmitting(false);
         return;
       }
       
@@ -210,7 +216,7 @@ const BackingModal = ({ isOpen, onClose, campaign, onContributionSuccess }: Back
 
       toast({
         title: "Transaction Confirmed",
-        description: `Successfully sent ${amountInETH} ETH to the campaign creator.`,
+        description: `Successfully sent ${amountInETH} ${currencySymbol} to escrow contract.`,
       });
 
       // Then record the contribution in our database
@@ -224,8 +230,8 @@ const BackingModal = ({ isOpen, onClose, campaign, onContributionSuccess }: Back
       await createContribution(contributionData, token!);
 
       toast({
-        title: "Contribution Successful!",
-        description: `You've successfully backed "${campaign.title}" with ${formatCurrency(numericAmount)} (${amountInETH} ETH).`,
+        title: "🎉 Contribution Successful!",
+        description: `You've successfully backed "${campaign.title}" with ${formatCurrency(numericAmount)} (${amountInETH} ${currencySymbol}). Funds are held in escrow.`,
       });
 
       // Reset form
@@ -262,7 +268,7 @@ const BackingModal = ({ isOpen, onClose, campaign, onContributionSuccess }: Back
         description: errorMessage,
         variant: "destructive",
       });
-      
+    } finally {
       setIsSubmitting(false);
     }
   };
@@ -322,7 +328,7 @@ const BackingModal = ({ isOpen, onClose, campaign, onContributionSuccess }: Back
             Back This Project
           </DialogTitle>
           <DialogDescription>
-            Support "{campaign.title}" by sending ETH directly to the campaign creator's wallet.
+            Support "{campaign.title}" by sending {currencySymbol} to the escrow contract. Funds are released to the creator after milestone approvals.
           </DialogDescription>
         </DialogHeader>
         

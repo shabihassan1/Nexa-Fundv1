@@ -13,6 +13,7 @@ import {
   contributeToChain,
   fetchCampaignsFromChain
 } from "@/utils/walletConnector";
+import { ensureTenderlyVTN, getNativeCurrencySymbol } from "@/lib/web3";
 
 interface WalletContextType {
   wallet: WalletState;
@@ -168,6 +169,26 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       if (walletState.connected && walletState.address) {
         setWallet(walletState);
         localStorage.setItem("walletAddress", walletState.address);
+        
+        // NEW: Ensure on Tenderly VTN network
+        try {
+          await ensureTenderlyVTN();
+          if (showToasts) {
+            toast({
+              title: "Network configured",
+              description: `Connected to NexaFund VTN (using ${getNativeCurrencySymbol()})`,
+            });
+          }
+        } catch (networkError) {
+          console.warn("Network switch failed:", networkError);
+          if (showToasts) {
+            toast({
+              title: "Network switch required",
+              description: "Please switch to NexaFund VTN network in MetaMask",
+              variant: "destructive",
+            });
+          }
+        }
         
         // Try to update the user's wallet address in their profile
         updateUserWalletAddress(walletState.address);
