@@ -21,6 +21,7 @@ import Register from "./pages/Register";
 import Login from "./pages/Login";
 import Profile from "./pages/Profile";
 import Dashboard from "./pages/Dashboard";
+import Preferences from "./pages/Preferences";
 import AdminPanel from "./pages/AdminPanel";
 import UserManagement from "./pages/UserManagement";
 import CampaignManagement from "./pages/CampaignManagement";
@@ -32,7 +33,12 @@ const App = () => (
     <AuthProvider>
       <WalletProvider>
         <TooltipProvider>
-          <BrowserRouter>
+          <BrowserRouter
+            future={{
+              v7_startTransition: true,
+              v7_relativeSplatPath: true,
+            }}
+          >
             <Toaster />
             <Sonner />
             <Routes>
@@ -44,6 +50,7 @@ const App = () => (
               <Route path="/start-campaign" element={<StartCampaign />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/preferences" element={<Preferences />} />
               <Route path="/admin" element={<AdminPanel />} />
               <Route path="/admin/users" element={<UserManagement />} />
               <Route path="/admin/campaigns" element={<CampaignManagement />} />

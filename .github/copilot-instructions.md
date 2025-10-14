@@ -1,6 +1,6 @@
 # Copilot Instructions
 
-Stop making summary docs for each things you do.
+Stop making summary or extra docs for each things you do. Only make a doc when i explicity say so.
 ## Windows PowerShell Environment
 - ❌ Never use `&&` (not supported in Windows)
 - ✅ Use semicolons `;` to chain commands

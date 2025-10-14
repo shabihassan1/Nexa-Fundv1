@@ -24,6 +24,14 @@ model User {
   isVerified  Boolean  @default(false)
   role        UserRole @default(USER)
   status      UserStatus @default(ACTIVE)
+  
+  // Recommendation System - Interest Profiling
+  interests           String[] @default([])  // ['education', 'healthcare', 'technology']
+  fundingPreference   String?  // 'small' | 'medium' | 'large'
+  riskTolerance       String?  // 'low' | 'medium' | 'high'
+  interestKeywords    String[] @default([])  // ['climate change', 'mental health']
+  preferencesSet      Boolean  @default(false)  // Track if user completed preferences
+  
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -109,6 +117,12 @@ model Campaign {
   escrowTransactions EscrowTransaction[]
   updates       Update[]
 
+  // Performance indexes
+  @@index([status])
+  @@index([category])
+  @@index([creatorId])
+  @@index([createdAt])
+  @@index([status, createdAt])
   @@map("campaigns")
 }
 

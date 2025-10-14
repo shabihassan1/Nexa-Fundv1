@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
@@ -27,6 +28,7 @@ import { API_URL } from "@/config";
 
 const Profile = () => {
   const { user, token, isAuthenticated } = useAuth();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
@@ -365,6 +367,40 @@ const Profile = () => {
                   </CardContent>
                 </Card>
               </div>
+            </div>
+
+            {/* Quick Actions Card */}
+            <div className="mt-8">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Quick Actions</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Button 
+                    onClick={() => navigate('/preferences')}
+                    variant="outline" 
+                    className="w-full justify-start"
+                  >
+                    <svg 
+                      className="h-5 w-5 mr-2" 
+                      fill="none" 
+                      viewBox="0 0 24 24" 
+                      stroke="currentColor"
+                    >
+                      <path 
+                        strokeLinecap="round" 
+                        strokeLinejoin="round" 
+                        strokeWidth={2} 
+                        d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" 
+                      />
+                    </svg>
+                    Manage Personalization Preferences
+                  </Button>
+                  <p className="text-sm text-muted-foreground mt-2">
+                    Set your interests to get personalized campaign recommendations
+                  </p>
+                </CardContent>
+              </Card>
             </div>
           </div>
         </div>

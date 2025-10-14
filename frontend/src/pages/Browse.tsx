@@ -18,7 +18,11 @@ const Browse = () => {
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['campaigns'],
-    queryFn: () => fetchCampaigns({ status: 'ACTIVE' }) // Only fetch active campaigns for browsing
+    queryFn: () => fetchCampaigns({ status: 'ACTIVE' }), // Only fetch active campaigns for browsing
+    staleTime: 2 * 60 * 1000, // 2 minutes - treat data as fresh
+    gcTime: 10 * 60 * 1000, // 10 minutes - keep in cache (formerly cacheTime)
+    refetchOnWindowFocus: false, // Don't refetch on tab switch
+    refetchOnMount: false, // Use cache on component remount
   });
 
   // Ensure campaigns is an array before filtering
