@@ -58,6 +58,21 @@ export const fetchUserById = async (id: string, token: string) => {
   }
 };
 
+export const fetchMyActivity = async () => {
+  const token = localStorage.getItem('token');
+  if (!token) throw new Error('Not authenticated');
+
+  const res = await fetch(`${API_URL}/users/me/activity`, {
+    headers: { 
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  });
+  
+  if (!res.ok) throw new Error('Failed to fetch user activity');
+  return res.json();
+};
+
 export const fetchUserCampaigns = async (userId: string, token: string) => {
   try {
   const res = await fetch(`${API_URL}/users/${userId}/campaigns`, {

@@ -1,7 +1,7 @@
 # Nexa Fund – Development Progress
 
 **Last Updated:** October 14, 2025  
-**Status:** Production-ready MVP with blockchain integration
+**Status:** Production-ready MVP with blockchain integration + dynamic widgets
 
 ---
 
@@ -191,13 +191,49 @@
 
 ---
 
+## ✅ Phase 9: Contract Deployment & Dynamic Browse Widgets (Completed - Oct 14)
+
+### Smart Contract Production Deployment
+- **New Contract Deployed**: `0x2428fB67608E04Dc3171f05e212211BBB633f589`
+- **Goal**: 20,000 POL ($10,000 USD) - realistic for testing
+- **Network**: Tenderly VTN (Chain ID: 73571)
+- **Milestones**: 3 phases (30%, 40%, 30%)
+- **Issue Resolved**: Old contract had 10 POL goal, contributions failed with "exceeds goal"
+
+### Browse Page Dynamic Widgets
+- **Backend**: New endpoint `GET /api/users/me/activity` for user stats
+- **User Activity Stats**: 
+  - Backed campaigns count (unique campaigns)
+  - Total contributed amount (USD)
+  - Campaigns created count
+  - Preferences included (interests, funding preference, risk tolerance)
+- **Frontend Integration**: 
+  - PersonalizedWidget now shows real user interests and preferences
+  - StatsWidget displays actual backing activity and contributions
+  - PromptWidget shown only when preferences not set
+  - All data fetched via React Query with proper caching
+- **Issue Resolved**: Static placeholder data replaced with live database queries
+
+**Files Modified:**
+- `backend/src/routes/user.routes.ts` - Added `/me/activity` route
+- `backend/src/controllers/user.controller.ts` - Added `getMyActivity` method
+- `frontend/src/services/userService.ts` - Added `fetchMyActivity` function
+- `frontend/src/pages/Browse.tsx` - Integrated real data into widgets
+- `frontend/.env` - Updated contract address
+
+---
+
 ## 🚧 Known Issues
 
 ### Minor
 - None currently
 
 ### Future Enhancements
-- Phase 2 of recommendation system (content-based filtering)
+- Milestone voting UI for backers
+- Admin contract management dashboard
+- Per-campaign contract deployment
+- View tracking for campaigns (currently placeholder)
+- Saved campaigns feature (currently placeholder)
 - AI fraud detection
 - Real-time notifications (WebSockets)
 - IPFS metadata storage
@@ -523,6 +559,65 @@ npm run dev
 - **Backend:** recommendation.controller.ts, recommendation.routes.ts, preferences.routes.ts (155 lines)
 - **Frontend:** Preferences.tsx, PreferencesEditor.tsx (313 lines), preferencesService.ts
 - **Tests:** test_interest_matching.py, quick_test.py, INTEREST_MATCHING_VALIDATION.md
+
+
+### Phase 3: UI/UX Enhancement ✅
+- **Badge Components:** RecommendationBadge.tsx with 4 badge variants
+  - TopMatchBadge: Gold gradient with Star icon and score % (≥0.80)
+  - RecommendedBadge: Blue gradient with Target icon and score % (≥0.60)
+  - TrendingBadge: Orange with TrendingUp icon
+  - EndingSoonBadge: Red animated badge with Clock icon and days left (≤7 days)
+- **Personalization Widgets:** PersonalizationWidget.tsx with 4 sidebar widgets
+  - PersonalizedWidget: Shows interests as badges, funding preference, risk tolerance, Edit button
+  - PromptWidget: CTA for users without preferences set
+  - StatsWidget: Activity stats (backed count, contributed amount, viewed, saved) with dashboard link
+  - TrendingWidget: For logged-out users with login CTA
+- **Frontend Service:** recommendationService.ts with 3 API methods
+  - getPersonalized(top_n): Calls GET /recommendations/personalized
+  - getTrending(top_n): Calls GET /recommendations/trending  
+  - getAlgorithmInfo(): Calls GET /recommendations/algorithm-info
+- **CampaignCard Enhancement:** Added badge prop and rendering logic
+  - Supports multiple badges (EndingSoon + TopMatch)
+  - Conditional rendering based on showRecommendationBadge prop
+  - Top-left badge placement with BadgeContainer
+- **Browse Page Redesign:** Complete UI overhaul with sections and sidebar
+  - Three sections: Top Matches (≥0.80), Recommended (≥0.60), Other (<0.60)
+  - Section headers with icons (Star, Target) and counts
+  - Right sidebar with personalization widgets (sticky positioning)
+  - Conditional widget rendering: PersonalizedWidget/PromptWidget for logged-in, TrendingWidget for logged-out
+  - Responsive layout (sidebar below content on mobile)
+- **Data Flow:** Fetches personalized recommendations, merges scores with campaigns, separates by badge threshold
+- **Performance:** Uses React Query caching (5min staleTime), parallel queries, memoized sections
+
+### Files Created/Modified
+- **Components:** RecommendationBadge.tsx (152 lines), PersonalizationWidget.tsx (184 lines)
+- **Services:** recommendationService.ts (58 lines)
+- **Pages:** Browse.tsx (redesigned with sections + sidebar, 307 lines)
+- **Components Updated:** CampaignCard.tsx (added badge support, 141 lines)
+
+### Phase 4: Homepage Integration ✅
+- **Featured Campaigns Personalization:** Homepage shows personalized campaigns for logged-in users
+  - Dynamic title: "✨ For You Campaigns" (personalized) or "Featured Campaigns" (default)
+  - Campaigns sorted by recommendation score, shows badges (Top Match, Recommended)
+  - Fallback to trending for logged-out users, consistent UX with Browse page
+- **Category Filter Fix:** Fixed CategoryFilter to use actual database category names (Technology, Arts, Community, etc.)
+
+### Files Modified
+- **Components:** FeaturedCampaigns.tsx (152 lines), CategoryFilter.tsx (updated IDs to match DB categories)
+- **Data:** campaigns.ts (updated categories array: Art→Arts, added Community)
+
+## 🎉 AI Recommendation System - COMPLETE
+
+**System Overview:**
+- **4 ML Algorithms:** Interest Match (60%), Content Similarity (30%), Collaborative Filtering (5%), Trending (5%)
+- **Smart Weighting:** Prioritizes user preferences and text matching until more interaction data available
+- **3-Tier Badges:** Top Match (≥35%), Recommended (20-35%), Other (<20%) - adjusted for current data
+- **Full Integration:** Browse page (3 sections + sidebar), Homepage (personalized featured), Preferences page
+- **Auto-Update:** ML models refresh on new contributions, fresh campaign data on every request
+- **Graceful Fallback:** Works for logged-in/out users, with/without preferences
+
+**Production Ready:** ML service (Python FastAPI), Backend (Node.js), Frontend (React), all integrated and tested
+
 
 ## 🚀 Next Phase: Blockchain Integration
 1. **Smart contracts:** Deploy to Polygon Mumbai, milestone-based funding

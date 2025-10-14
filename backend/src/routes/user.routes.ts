@@ -5,6 +5,9 @@ import { PERMISSIONS } from '../constants/permissions';
 
 const router = express.Router();
 
+// User's own activity stats (must be before /:userId routes)
+router.get('/me/activity', authMiddleware, userController.getMyActivity);
+
 // Admin-only routes
 router.get('/', authMiddleware, requireAdmin, userController.getAllUsers);
 router.put('/:userId/role', authMiddleware, requirePermission(PERMISSIONS.USER_MANAGE_ROLES), userController.updateUserRole);

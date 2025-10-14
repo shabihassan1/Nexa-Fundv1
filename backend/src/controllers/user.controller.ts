@@ -195,5 +195,64 @@ export const userController = {
       console.error('Error getting user stats:', error);
       res.status(500).json({ error: 'Failed to retrieve user statistics' });
     }
+  },
+
+  // Get current user's activity stats
+  getMyActivity: async (req: Request, res: Response): Promise<void> => {
+    try {
+      const userId = req.user?.id;
+
+      if (!userId) {
+        res.status(401).json({ error: 'Unauthorized' });
+        return;
+      }
+
+      // Get user's contributions count and total amount
+      const contributions = await prisma.contribution.findMany({
+        where: { userId },
+        select: {
+          amount: true,
+          campaignId: true,
+        }
+      });
+
+      const backedCount = new Set(contributions.map(c => c.campaignId)).size; // Unique campaigns backed
+      const totalContributed = contributions.reduce((sum, c) => sum + c.amount, 0);
+
+      // Get campaigns created by user
+      const campaignsCreated = await prisma.campaign.count({
+        where: { creatorId: userId }
+      });
+
+      // Get user preferences
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: {
+          interests: true,
+          fundingPreference: true,
+          riskTolerance: true,
+          preferencesSet: true,
+        }
+      });
+
+      res.status(200).json({
+        activity: {
+          backedCount,
+          totalContributed,
+          campaignsCreated,
+          viewedCount: 0, // TODO: Implement view tracking
+          savedCount: 0,  // TODO: Implement saved campaigns feature
+        },
+        preferences: {
+          interests: user?.interests || [],
+          fundingPreference: user?.fundingPreference,
+          riskTolerance: user?.riskTolerance,
+          preferencesSet: user?.preferencesSet || false,
+        }
+      });
+    } catch (error) {
+      console.error('Error getting user activity:', error);
+      res.status(500).json({ error: 'Failed to retrieve user activity' });
+    }
   }
 }; 

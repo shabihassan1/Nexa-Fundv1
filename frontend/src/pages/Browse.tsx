@@ -11,6 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/contexts/AuthContext";
 import { recommendationService } from "@/services/recommendationService";
 import { PersonalizedWidget, PromptWidget, StatsWidget, TrendingWidget } from "@/components/PersonalizationWidget";
+import { fetchMyActivity } from "@/services/userService";
 
 interface CampaignWithRecommendation {
   id: string;
@@ -83,6 +84,15 @@ const Browse = () => {
     },
     retry: 1,
     staleTime: 5 * 60 * 1000,
+  });
+
+  // Fetch user activity and preferences
+  const { data: userActivityData } = useQuery({
+    queryKey: ['user-activity', user?.id],
+    queryFn: fetchMyActivity,
+    enabled: isAuthenticated && !!user?.id,
+    retry: 1,
+    staleTime: 2 * 60 * 1000,
   });
 
   // Merge campaigns with recommendation scores
@@ -312,20 +322,20 @@ const Browse = () => {
                 {isAuthenticated ? (
                   <>
                     {/* Show personalized widget if user has preferences set */}
-                    {personalizedData?.recommendations && personalizedData.recommendations.length > 0 ? (
+                    {userActivityData?.preferences?.preferencesSet ? (
                       <PersonalizedWidget 
-                        interests={[]} // TODO: Fetch from user profile
-                        fundingPreference="any"
-                        riskTolerance="medium"
+                        interests={userActivityData?.preferences?.interests || []}
+                        fundingPreference={userActivityData?.preferences?.fundingPreference}
+                        riskTolerance={userActivityData?.preferences?.riskTolerance}
                       />
                     ) : (
                       <PromptWidget />
                     )}
                     <StatsWidget
-                      backedCount={0} // TODO: Fetch user stats
-                      totalContributed={0}
-                      viewedCount={0}
-                      savedCount={0}
+                      backedCount={userActivityData?.activity?.backedCount || 0}
+                      totalContributed={userActivityData?.activity?.totalContributed || 0}
+                      viewedCount={userActivityData?.activity?.viewedCount || 0}
+                      savedCount={userActivityData?.activity?.savedCount || 0}
                     />
                   </>
                 ) : (
