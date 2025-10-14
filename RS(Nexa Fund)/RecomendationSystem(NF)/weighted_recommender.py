@@ -160,40 +160,71 @@ class WeightedRecommender:
     def compute_content_similarity_score(self, user_id: str, campaign_id: str, 
                                         user_preferences: Optional[Dict] = None) -> float:
         """
-        Algorithm 3: Content Similarity (20% weight)
-        Computes cosine similarity between user profile and campaign
+        Algorithm 3: Content Similarity (30% weight)
+        Uses user's interest keywords and categories from preferences page
+        to match against campaign title + description
         
         Returns: Score between 0.0 and 1.0
         """
         try:
-            # Get user and campaign indices
-            user_idx = self.ml_recommender.donor_df[
-                self.ml_recommender.donor_df['id'] == user_id
-            ].index
+            # If no preferences, return 0
+            if not user_preferences:
+                return 0.0
             
-            campaign_idx = self.ml_recommender.campaign_df[
+            # Get campaign data
+            campaign = self.ml_recommender.campaign_df[
                 self.ml_recommender.campaign_df['id'] == campaign_id
-            ].index
+            ]
             
-            if len(user_idx) == 0 or len(campaign_idx) == 0:
+            if campaign.empty:
                 return 0.0
             
-            # Get embeddings
-            user_emb = self.ml_recommender.donor_embeddings[user_idx[0]]
-            campaign_emb = self.ml_recommender.campaign_embeddings[campaign_idx[0]]
+            campaign = campaign.iloc[0]
             
-            # Compute cosine similarity
-            similarity = np.dot(user_emb, campaign_emb) / (
-                np.linalg.norm(user_emb) * np.linalg.norm(campaign_emb)
-            )
+            # Build user text from preferences only (not bio!)
+            user_text_parts = []
             
-            if np.isnan(similarity) or np.isinf(similarity):
+            # Add user interests (categories)
+            interests = user_preferences.get('interests', [])
+            if interests:
+                user_text_parts.extend(interests)
+            
+            # Add user keywords
+            keywords = user_preferences.get('interestKeywords', [])
+            if keywords:
+                user_text_parts.extend(keywords)
+            
+            # If no text, return 0
+            if not user_text_parts:
                 return 0.0
             
-            # Normalize to 0-1 range
-            normalized_score = (similarity + 1) / 2  # Cosine similarity is in [-1, 1]
+            user_text = ' '.join(user_text_parts).lower()
             
-            return max(0.0, min(normalized_score, 1.0))
+            # Get campaign text (title + description)
+            campaign_title = str(campaign.get('title', '')).lower()
+            campaign_desc = str(campaign.get('description', '')).lower()
+            campaign_text = f"{campaign_title} {campaign_desc}"
+            
+            # Simple word overlap scoring
+            user_words = set(re.findall(r'\b\w+\b', user_text))
+            campaign_words = set(re.findall(r'\b\w+\b', campaign_text))
+            
+            # Remove common stop words
+            stop_words = {'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 
+                         'of', 'with', 'by', 'from', 'as', 'is', 'was', 'are', 'be', 'been'}
+            user_words = user_words - stop_words
+            campaign_words = campaign_words - stop_words
+            
+            if not user_words:
+                return 0.0
+            
+            # Calculate overlap
+            overlap = len(user_words.intersection(campaign_words))
+            total = len(user_words)
+            
+            score = overlap / total if total > 0 else 0.0
+            
+            return min(score, 1.0)
             
         except Exception as e:
             print(f"⚠️ Content similarity error: {e}")
@@ -283,20 +314,22 @@ class WeightedRecommender:
         has_preferences = user_preferences and user_preferences.get('interests')
         
         if has_preferences:
-            # Full personalization with preferences
+            # Prioritize Interest Match & Content Similarity until we have more interaction data
+            # Interest: 60% (up from 40%), Content: 30% (up from 20%)
+            # Collaborative: 5% (down from 30%), Trending: 5% (down from 10%)
             weights = {
-                'interest': 0.40,
-                'collaborative': 0.30,
-                'content': 0.20,
-                'trending': 0.10
+                'interest': 0.60,
+                'collaborative': 0.05,
+                'content': 0.30,
+                'trending': 0.05
             }
         else:
-            # No preferences - skip interest matching
+            # No preferences - use content & trending only
             weights = {
                 'interest': 0.00,
-                'collaborative': 0.50,
-                'content': 0.30,
-                'trending': 0.20
+                'collaborative': 0.05,
+                'content': 0.70,
+                'trending': 0.25
             }
         
         for campaign in campaigns:

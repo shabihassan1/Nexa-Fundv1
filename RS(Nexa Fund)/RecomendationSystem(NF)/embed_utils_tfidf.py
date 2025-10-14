@@ -58,8 +58,9 @@ def compute_tfidf_embeddings(df, text_fields, numeric_fields, fit_vectorizer=Non
 # Helper functions for new donor and campaign schemas
 
 def donor_text_fields():
-    # Use 'name' and 'bio' as text fields for donors
-    return ["name", "bio"]
+    # Only use 'name' - bio should NOT affect recommendations
+    # Recommendations are based ONLY on preferences page data (interests, keywords)
+    return ["name"]
 
 def donor_numeric_fields():
     # No numeric fields in new donor schema, but can use isVerified as int
