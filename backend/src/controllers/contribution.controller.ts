@@ -162,6 +162,20 @@ export const contributionController = {
         }
       });
       
+      // Trigger ML model refresh in background (non-blocking)
+      // This updates collaborative filtering with new contribution data
+      try {
+        fetch('http://localhost:8000/refresh', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        }).catch(() => {
+          // Silently fail if ML service is unavailable
+          console.log('ML service refresh triggered (async)');
+        });
+      } catch (error) {
+        // Non-blocking, ignore errors
+      }
+      
       res.status(201).json(contribution);
     } catch (error) {
       console.error('Error creating contribution:', error);

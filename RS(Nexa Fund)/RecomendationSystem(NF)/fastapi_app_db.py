@@ -3,11 +3,13 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List, Optional, Dict
 import uvicorn
 import pandas as pd
 import numpy as np
+import requests
 from ml_recommender_db import DatabaseMLRecommender
+from weighted_recommender import WeightedRecommender
 import os
 
 # Initialize FastAPI app
@@ -26,8 +28,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Global recommender instance
+# Global recommender instances
 recommender = None
+weighted_recommender = None
 
 # Pydantic models for API requests/responses
 class RecommendationRequest(BaseModel):
@@ -63,7 +66,7 @@ class SystemStatusResponse(BaseModel):
 @app.on_event("startup")
 async def startup_event():
     """Initialize the ML recommender on startup using database data"""
-    global recommender
+    global recommender, weighted_recommender
     try:
         print("🚀 Initializing Database ML Recommendation System...")
         
@@ -76,13 +79,20 @@ async def startup_event():
         if recommender.load_data_from_backend():
             recommender.create_interaction_matrix(sparsity=0.7)
             recommender.fit_nmf()
+            
+            # Initialize weighted recommender
+            weighted_recommender = WeightedRecommender(recommender)
+            print("✅ Weighted Recommendation Engine initialized!")
+            
             print("✅ Database ML Recommendation System initialized successfully!")
         else:
             print("❌ Failed to initialize Database ML Recommendation System")
             recommender = None
+            weighted_recommender = None
     except Exception as e:
         print(f"❌ Error during initialization: {e}")
         recommender = None
+        weighted_recommender = None
 
 @app.get("/", response_model=dict)
 async def root():
@@ -366,19 +376,49 @@ async def test_recommendations():
 
 @app.post("/refresh")
 async def refresh_data():
-    """Refresh data from database and retrain model"""
-    global recommender
+    """
+    Refresh data from database and retrain all models
+    
+    This updates:
+    1. Collaborative Filtering: Retrains NMF model with latest contributions
+    2. Content Similarity: Rebuilds TF-IDF embeddings with latest campaign/user data
+    3. Trending Scores: Uses fresh campaign data with current contribution counts
+    """
+    global recommender, weighted_recommender
     try:
         print("🔄 Refreshing data from database...")
         
-        if recommender is None:
-            recommender = DatabaseMLRecommender(n_components=10)
+        # Get backend URL from environment
+        backend_url = os.getenv('BACKEND_API_URL', 'http://localhost:5050/api')
         
+        if recommender is None:
+            recommender = DatabaseMLRecommender(n_components=10, backend_url=backend_url)
+        
+        # Load fresh data from database
         if recommender.load_data_from_backend():
+            # Retrain collaborative filtering (NMF)
             recommender.create_interaction_matrix(sparsity=0.7)
             recommender.fit_nmf()
-            print("✅ Data refreshed and model retrained successfully!")
-            return {"message": "Data refreshed successfully", "status": "success"}
+            
+            # Reinitialize weighted recommender with updated models
+            weighted_recommender = WeightedRecommender(recommender)
+            
+            print("✅ Data refreshed and all models retrained successfully!")
+            print(f"   • {len(recommender.donor_df)} users loaded")
+            print(f"   • {len(recommender.campaign_df)} campaigns loaded")
+            print(f"   • {len(recommender.interactions_df)} interactions loaded")
+            print(f"   • NMF model retrained")
+            print(f"   • TF-IDF embeddings updated")
+            
+            return {
+                "message": "Data refreshed successfully",
+                "status": "success",
+                "stats": {
+                    "users": len(recommender.donor_df),
+                    "campaigns": len(recommender.campaign_df),
+                    "interactions": len(recommender.interactions_df)
+                }
+            }
         else:
             return {"message": "Failed to refresh data", "status": "error"}
             
@@ -551,6 +591,179 @@ async def debug_categories():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error debugging categories: {str(e)}")
 
+# ============= NEW WEIGHTED RECOMMENDATION ENDPOINTS =============
+
+class PersonalizedRequest(BaseModel):
+    """Request model for personalized recommendations"""
+    user_id: str
+    user_preferences: Optional[Dict] = None
+    top_n: int = 20
+
+class PersonalizedResponse(BaseModel):
+    """Response model for personalized recommendations"""
+    campaign_id: str
+    title: str
+    category: str
+    recommendationScore: float
+    badge: str
+    scores: Dict[str, float]
+
+@app.post("/personalized", response_model=List[PersonalizedResponse])
+async def get_personalized_recommendations(request: PersonalizedRequest):
+    """
+    Get personalized campaign recommendations using multi-algorithm weighted scoring
+    
+    Algorithms:
+    - Interest Match (40%): User preference-based matching
+    - Collaborative Filtering (30%): NMF-based predictions
+    - Content Similarity (20%): TF-IDF cosine similarity
+    - Trending Boost (10%): Recent activity and urgency
+    
+    Returns campaigns with scores, sorted by relevance
+    
+    Note: Uses fresh campaign data from database for accurate trending scores
+    """
+    if weighted_recommender is None:
+        raise HTTPException(status_code=503, detail="Weighted recommender not initialized")
+    
+    try:
+        # Fetch fresh campaign data from backend for accurate trending scores
+        backend_url = os.getenv('BACKEND_API_URL', 'http://localhost:5050/api')
+        try:
+            campaigns_response = requests.get(f"{backend_url}/recommender/export/campaigns", timeout=5)
+            if campaigns_response.status_code == 200:
+                campaigns_data = campaigns_response.json()
+                fresh_campaigns = campaigns_data.get('campaigns', [])
+            else:
+                # Fallback to cached data
+                fresh_campaigns = None
+        except:
+            # Fallback to cached data if backend unavailable
+            fresh_campaigns = None
+        
+        # Get recommendations with fresh campaign data
+        recommendations = weighted_recommender.get_personalized_recommendations(
+            user_id=request.user_id,
+            user_preferences=request.user_preferences,
+            campaigns=fresh_campaigns,
+            top_n=request.top_n
+        )
+        
+        # Format response
+        formatted_recs = []
+        for rec in recommendations:
+            formatted_recs.append({
+                'campaign_id': rec['id'],
+                'title': rec['title'],
+                'category': rec.get('category', 'Unknown'),
+                'recommendationScore': rec['recommendationScore'],
+                'badge': rec['badge'],
+                'scores': rec['scores']
+            })
+        
+        return formatted_recs
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error generating recommendations: {str(e)}")
+
+@app.post("/trending", response_model=List[PersonalizedResponse])
+async def get_trending_campaigns(top_n: int = 20):
+    """
+    Get trending campaigns for non-logged-in users
+    Uses only trending score based on recent activity
+    
+    Note: Fetches fresh campaign data for accurate real-time trending scores
+    """
+    if weighted_recommender is None:
+        raise HTTPException(status_code=503, detail="Weighted recommender not initialized")
+    
+    try:
+        # Fetch fresh campaign data from backend for accurate trending scores
+        backend_url = os.getenv('BACKEND_API_URL', 'http://localhost:5050/api')
+        try:
+            campaigns_response = requests.get(f"{backend_url}/recommender/export/campaigns", timeout=5)
+            if campaigns_response.status_code == 200:
+                campaigns_data = campaigns_response.json()
+                fresh_campaigns = campaigns_data.get('campaigns', [])
+            else:
+                # Fallback to cached data
+                fresh_campaigns = None
+        except:
+            # Fallback to cached data if backend unavailable
+            fresh_campaigns = None
+        
+        # Get trending campaigns with fresh data
+        recommendations = weighted_recommender.get_non_personalized_recommendations(
+            campaigns=fresh_campaigns,
+            top_n=top_n
+        )
+        
+        # Format response
+        formatted_recs = []
+        for rec in recommendations:
+            formatted_recs.append({
+                'campaign_id': rec['id'],
+                'title': rec['title'],
+                'category': rec.get('category', 'Unknown'),
+                'recommendationScore': rec['recommendationScore'],
+                'badge': rec['badge'],
+                'scores': rec['scores']
+            })
+        
+        return formatted_recs
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error generating trending campaigns: {str(e)}")
+
+@app.get("/algorithm-info")
+async def get_algorithm_info():
+    """
+    Get information about the recommendation algorithms and weights
+    """
+    return {
+        "algorithms": {
+            "interest_match": {
+                "weight": "40%",
+                "description": "Matches campaigns to user's selected interests and preferences",
+                "components": {
+                    "category_match": "50%",
+                    "keyword_match": "30%",
+                    "preference_alignment": "20%"
+                }
+            },
+            "collaborative_filtering": {
+                "weight": "30%",
+                "description": "Predicts user-campaign affinity using NMF matrix factorization",
+                "technique": "Non-negative Matrix Factorization (NMF)"
+            },
+            "content_similarity": {
+                "weight": "20%",
+                "description": "Compares campaign text to user profile using TF-IDF",
+                "technique": "Cosine Similarity on TF-IDF vectors"
+            },
+            "trending_boost": {
+                "weight": "10%",
+                "description": "Boosts campaigns with recent activity and urgency",
+                "components": {
+                    "recent_contributions": "40%",
+                    "view_count": "30%",
+                    "funding_progress": "20%",
+                    "deadline_urgency": "10%"
+                }
+            }
+        },
+        "badge_thresholds": {
+            "top_match": "Score ≥ 0.80",
+            "recommended": "Score ≥ 0.60",
+            "other": "Score < 0.60"
+        },
+        "fallback_behavior": {
+            "no_preferences": "Uses collaborative filtering (50%), content similarity (30%), trending (20%)",
+            "logged_out": "Uses trending score only",
+            "ml_service_down": "Returns trending campaigns"
+        }
+    }
+
 if __name__ == "__main__":
     print("🚀 Starting Database ML Recommendation System FastAPI Server...")
     print("📊 Data Source: PostgreSQL Database via Backend API")
@@ -559,7 +772,7 @@ if __name__ == "__main__":
     uvicorn.run(
         "fastapi_app_db:app",
         host="0.0.0.0",
-        port=8001,
+        port=8000,
         reload=True,
         log_level="info"
     )

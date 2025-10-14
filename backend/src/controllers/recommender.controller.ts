@@ -112,7 +112,14 @@ export const exportCampaigns = async (_req: Request, res: Response): Promise<voi
         startDate: true,
         endDate: true,
         createdAt: true,
-        updatedAt: true
+        updatedAt: true,
+        _count: {
+          select: {
+            contributions: true,
+            milestones: true,
+            rewardTiers: true
+          }
+        }
       },
       orderBy: { createdAt: 'desc' }
     });

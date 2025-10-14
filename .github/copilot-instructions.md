@@ -1,6 +1,10 @@
 # Copilot Instructions
 
 Stop making summary or extra docs for each things you do. Only make a doc when i explicity say so.
+
+After every feature, only update in progress.md file.
+
+When you make a doc, follow these rules:
 ## Windows PowerShell Environment
 - ❌ Never use `&&` (not supported in Windows)
 - ✅ Use semicolons `;` to chain commands

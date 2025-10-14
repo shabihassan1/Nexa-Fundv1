@@ -6,15 +6,16 @@ const router = Router();
 const prisma = new PrismaClient();
 
 // Interest categories available for selection
+// NOTE: These should match the campaign categories in the database
 export const INTEREST_CATEGORIES = [
-  'education',
-  'healthcare',
-  'technology',
-  'environment',
-  'arts-culture',
-  'community-development',
-  'emergency-relief',
-  'animal-welfare',
+  'Education',
+  'Health & Fitness',
+  'Technology',
+  'Environment',
+  'Arts',
+  'Community',
+  'Emergency Relief',
+  'Animal Welfare',
 ] as const;
 
 // GET /api/preferences/categories - Get available interest categories
