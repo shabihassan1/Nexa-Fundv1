@@ -214,6 +214,22 @@
   - All data fetched via React Query with proper caching
 - **Issue Resolved**: Static placeholder data replaced with live database queries
 
+### Campaign Details Page - Backers Count Fix
+- **Issue**: Sidebar showed total contributions (3) instead of unique backers (1)
+- **Fix**: Added contributions query to calculate unique backers using `Set(userId)`
+- **Result**: Sidebar now accurately displays unique backers count
+- **Files Modified**: `frontend/src/pages/CampaignDetails.tsx`
+
+### Campaign Progress Bar - Small Percentage Display
+- **Issue**: Progress bar showed 0% and no green color for $105 raised of $35,000 (0.3% funded)
+- **Fix**: 
+  - Removed `Math.round()` that was rounding small percentages to 0
+  - Progress bar now uses exact percentage (0.3%)
+  - Display shows 1 decimal place for percentages < 1% (e.g., "0.3% funded")
+  - Display shows whole numbers for percentages ≥ 1% (e.g., "5% funded")
+- **Result**: Progress bar now shows green color even for small contributions
+- **Files Modified**: `frontend/src/pages/CampaignDetails.tsx`
+
 **Files Modified:**
 - `backend/src/routes/user.routes.ts` - Added `/me/activity` route
 - `backend/src/controllers/user.controller.ts` - Added `getMyActivity` method

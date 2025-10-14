@@ -107,6 +107,24 @@ const CampaignDetails = () => {
     enabled: !!id && selectedTab === 'rewards'
   });
 
+  // Fetch contributions to calculate unique backers
+  const { data: contributions = [] } = useQuery({
+    queryKey: ['contributions', id],
+    queryFn: async () => {
+      const response = await fetch(`${API_URL}/contributions/campaign/${id}`, {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+      });
+      if (!response.ok) return [];
+      return response.json();
+    },
+    enabled: !!id
+  });
+
+  // Calculate unique backers from contributions
+  const uniqueBackers = contributions.length > 0 
+    ? new Set(contributions.map((c: any) => c.userId)).size 
+    : campaign?._count?.contributions || 0;
+
   // Creator data is already included in campaign.creator, no need for separate query
   // const { data: creator, isLoading: creatorLoading } = useQuery({
   //   queryKey: ['user', campaign?.creatorId],
@@ -359,8 +377,16 @@ const CampaignDetails = () => {
     );
   }
 
-  // Calculate progress percentage
-  const progress = Math.min(Math.round(((campaign.currentAmount || 0) / (campaign.targetAmount || 1)) * 100), 100);
+  // Calculate progress percentage (with 1 decimal place for accuracy)
+  const exactProgress = ((campaign.currentAmount || 0) / (campaign.targetAmount || 1)) * 100;
+  const progress = Math.min(exactProgress, 100);
+  
+  // For display: round to 0 decimals if >= 1%, otherwise show 1 decimal
+  const displayProgress = progress >= 1 
+    ? Math.round(progress) 
+    : progress > 0 
+      ? progress.toFixed(1) 
+      : 0;
 
   // Format currency
   const formatCurrency = (amount: number) => {
@@ -776,7 +802,7 @@ const CampaignDetails = () => {
                         of {formatCurrency(campaign.targetAmount || 0)} goal
                       </p>
                       <p className="text-sm text-gray-500">
-                        {progress}% funded
+                        {displayProgress}% funded
                       </p>
                     </div>
                   </div>
@@ -789,7 +815,7 @@ const CampaignDetails = () => {
                       <div className="flex items-center justify-center mb-2">
                         <Users className="h-5 w-5 text-gray-500 mr-1" />
                       </div>
-                      <p className="text-2xl font-bold">{campaign._count?.contributions || 0}</p>
+                      <p className="text-2xl font-bold">{uniqueBackers}</p>
                       <p className="text-sm text-gray-600">Backers</p>
                     </div>
                     <div className="text-center">
