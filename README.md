@@ -1,6 +1,6 @@
-# Nexa Fund – Blockchain Crowdfunding Platform
+# Nexa Fund – AI-Powered Blockchain Crowdfunding Platform
 
-Enterprise-level crowdfunding platform with role-based access control, smart contracts, and fraud prevention. Built as a Final Year Project (FYP).
+Enterprise-level crowdfunding platform with ML-powered personalized recommendations, role-based access control, smart contracts, and fraud prevention. Built as a Final Year Project (FYP).
 
 ## ⚠️ Testing Phase
 
@@ -38,12 +38,19 @@ npm run dev
 ```
 ✅ Frontend: http://localhost:8080
 
-### 4. Login
+### 4. ML Recommendation Service (Optional - 2 min)
+```powershell
+cd "RS(Nexa Fund)/RecomendationSystem(NF)"
+.\start-ml-service.ps1
+```
+✅ ML Service: http://localhost:8000 (enables personalized recommendations)
+
+### 5. Login
 **Test Accounts:** See [docs/TEST_ACCOUNTS.md](docs/TEST_ACCOUNTS.md)
 - Email: `superadmin@nexafund.com`
 - Password: `Test@123`
 
-### 5. MetaMask Wallet (Required for contributions)
+### 6. MetaMask Wallet (Required for contributions)
 **Wallet Setup:** See [docs/Wallet-Setup.md](docs/Wallet-Setup.md)
 - Install MetaMask extension
 - Add Tenderly VTN network (Chain ID: 73571)
@@ -54,6 +61,14 @@ npm run dev
 
 ## ✨ Key Features
 
+### 🤖 AI Recommendation System (NEW)
+- **4 ML Algorithms:** Interest Match (60%), Content Similarity (30%), Collaborative Filtering (5%), Trending (5%)
+- **Personalized Discovery:** Browse page with "Top Matches", "Recommended", and "Other" sections
+- **Smart Badges:** Visual indicators (🌟 Top Match ≥35%, 🎯 Recommended 20-35%)
+- **User Preferences:** Custom interest selection, funding preferences, risk tolerance, keywords
+- **Homepage Integration:** "✨ For You Campaigns" with personalized sorting
+- **Auto-Update:** Models retrain after new contributions
+
 ### Security & Roles
 - **6-Tier Role System:** SUPER_ADMIN → ADMIN → MODERATOR → CREATOR → BACKER → USER
 - **32+ Permissions** across campaign management, user moderation, analytics
@@ -63,7 +78,7 @@ npm run dev
 ### Platform Features
 - **Campaign Management:** Create, edit, browse with reward tiers and milestones
 - **Admin Dashboard:** User management, campaign oversight, platform analytics
-- **Profile System:** User dashboards with activity tracking
+- **Profile System:** User dashboards with activity tracking and preferences editor
 - **Content Moderation:** Report handling and fraud prevention
 - **File Management:** Image uploads with secure serving
 
@@ -80,6 +95,7 @@ npm run dev
 
 **Backend:** Express.js, TypeScript, Prisma, PostgreSQL (Neon Cloud)  
 **Frontend:** React 18, TypeScript, Tailwind CSS, Vite, shadcn/ui, ethers.js v5  
+**ML Service:** Python FastAPI, scikit-learn, pandas, numpy (Port 8000)  
 **Blockchain:** Solidity 0.8.24, Hardhat, ethers.js v6, Tenderly VTN (Chain ID: 73571)  
 **Security:** JWT, RBAC (6 roles, 32+ permissions), Helmet, CORS, Rate Limiting
 
@@ -89,12 +105,14 @@ npm run dev
 
 ```
 Nexa-Fundv1/
-├── backend/              # Express + TypeScript + Prisma
-├── frontend/             # React + Vite + Tailwind
-├── smart-contracts/      # Hardhat + Solidity
-├── docs/                 # Documentation & test accounts
-├── README.md             # This file
-└── SETUP.md              # Detailed setup guide
+├── backend/                        # Express + TypeScript + Prisma
+├── frontend/                       # React + Vite + Tailwind
+├── RS(Nexa Fund)/RecomendationSystem(NF)/  # Python ML service
+├── smart-contracts/                # Hardhat + Solidity
+├── docs/                           # Documentation & test accounts
+├── Extra Docs/                     # Technical docs & guides
+├── README.md                       # This file
+└── SETUP.md                        # Detailed setup guide
 ```
 
 ---
@@ -115,6 +133,12 @@ npm run dev              # Start dev server (port 8080)
 npm run build            # Build for production
 ```
 
+### ML Service
+```powershell
+cd "RS(Nexa Fund)/RecomendationSystem(NF)"
+.\start-ml-service.ps1   # Start ML API (port 8000)
+```
+
 ### Smart Contracts
 ```powershell
 cd smart-contracts
@@ -127,10 +151,12 @@ npx hardhat run scripts/deploy-realistic-campaign.ts --network tenderlyVTN  # De
 
 ## 🎯 Core Achievements
 
+✅ **AI Recommendation System** - 4-algorithm ML engine with personalized discovery  
 ✅ **Enterprise RBAC** - 6 roles, 32+ permissions, resource ownership  
-✅ **Full-Stack MVP** - Backend API, React frontend, PostgreSQL  
+✅ **Full-Stack MVP** - Backend API, React frontend, PostgreSQL, Python ML service  
 ✅ **Smart Contracts Integrated** - Deployed to Tenderly VTN, escrow-based contributions  
 ✅ **Web3 Integration** - MetaMask connection, network auto-switching, POL transactions  
+✅ **Personalized UX** - Browse sections, smart badges, preference management  
 ✅ **Security** - JWT auth, input validation, campaign status checks, error decoding  
 ✅ **Cloud-Ready** - Neon database, Tenderly VTN, no local blockchain required  
 ✅ **Test Suite** - 20+ tests covering core functionality  
@@ -144,6 +170,11 @@ npx hardhat run scripts/deploy-realistic-campaign.ts --network tenderlyVTN  # De
 - **[SETUP.md](SETUP.md)** - Complete setup guide with troubleshooting
 - **[docs/TEST_ACCOUNTS.md](docs/TEST_ACCOUNTS.md)** - Test credentials and scenarios
 - **[docs/Wallet-Setup.md](docs/Wallet-Setup.md)** - MetaMask & Tenderly VTN setup
+
+### AI/ML System
+- **[RS(Nexa Fund)/RecomendationSystem(NF)/README.md](RS(Nexa%20Fund)/RecomendationSystem(NF)/README.md)** - ML service setup & architecture
+- **[Extra Docs/RECOMMENDATION_SYSTEM_PLAN.md](Extra%20Docs/RECOMMENDATION_SYSTEM_PLAN.md)** - Complete implementation plan
+- **[Extra Docs/INTEREST_MATCHING_VALIDATION.md](Extra%20Docs/INTEREST_MATCHING_VALIDATION.md)** - Algorithm validation
 
 ### Smart Contract Docs
 - **[smart-contracts/README.md](smart-contracts/README.md)** - Contract overview & deployment
@@ -159,7 +190,11 @@ npx hardhat run scripts/deploy-realistic-campaign.ts --network tenderlyVTN  # De
 
 ## 🔄 Development Status
 
-### ✅ Completed (Phase 1 & 2)
+### ✅ Completed (Phase 1-4)
+- **AI Recommendation System:** 4-algorithm ML engine with personalized campaign discovery
+- **User Preferences:** Interest profiling, funding preferences, risk tolerance, custom keywords
+- **Personalized UI:** Browse page sections (Top Matches/Recommended/Other), smart badges
+- **Homepage Integration:** "For You" campaigns with ML-powered sorting
 - Enterprise role-based access control (6 roles, 32+ permissions)
 - Campaign CRUD with reward tiers and milestones
 - Admin dashboard and user management
@@ -172,14 +207,15 @@ npx hardhat run scripts/deploy-realistic-campaign.ts --network tenderlyVTN  # De
 - Cloud database integration (Neon PostgreSQL)
 - Error handling with decoded Solidity revert reasons
 
-### 🚧 In Progress (Phase 3)
+### 🚧 In Progress (Phase 5)
 - Milestone voting UI for backers
 - Admin contract management dashboard
 - Per-campaign contract deployment (currently shared contract)
 
-### 📋 Planned (Phase 4+)
+### 📋 Planned (Phase 6+)
+- Campaign Details "Similar Campaigns" section
+- Dashboard recommendation widgets with "Why recommended?" tooltips
 - IPFS storage for campaign media and milestone evidence
-- AI-powered fraud detection
 - Real-time notifications (WebSocket)
 - Production deployment (AWS/Vercel/Railway)
 - Mainnet deployment with audited contracts
@@ -188,12 +224,14 @@ npx hardhat run scripts/deploy-realistic-campaign.ts --network tenderlyVTN  # De
 
 ## 📊 Project Metrics
 
-- **30+ API Endpoints** - Authentication, campaigns, users, contributions, milestones
+- **35+ API Endpoints** - Auth, campaigns, users, contributions, milestones, recommendations, preferences
+- **4 ML Algorithms** - Interest Match, Content Similarity, Collaborative Filtering, Trending
 - **12 Test Accounts** - All roles represented for testing (SUPER_ADMIN → USER)
-- **8 Database Models** - Users, campaigns, contributions, milestones, reward tiers, reports, updates, votes
+- **10 Database Models** - Users, campaigns, contributions, milestones, reward tiers, reports, updates, votes + preferences
 - **2 Production Contracts** - NexaFundWeighted (deployed), MilestoneEscrow (alternative)
-- **100% Core Coverage** - Authentication, authorization, and contribution flow tested
+- **100% Core Coverage** - Authentication, authorization, contribution flow, and ML recommendations tested
 - **1 Deployed Contract** - `0xaB37c74fD8598CF891990Ad69E84D94014AE8Aa9` on Tenderly VTN
+- **415+ Lines ML Code** - weighted_recommender.py with 4-algorithm hybrid system
 
 ---
 
@@ -228,6 +266,12 @@ npx hardhat run scripts/deploy-realistic-campaign.ts --network tenderlyVTN  # De
 **Frontend can't connect**
 - Check VITE_API_URL points to `http://localhost:5050/api`
 - Verify backend is running on port 5050
+
+**ML recommendations not showing**
+- ML service must be running on port 8000
+- Run `.\start-ml-service.ps1` from `RS(Nexa Fund)/RecomendationSystem(NF)/`
+- Set user preferences: Profile → Preferences
+- Backend gracefully falls back if ML service unavailable
 
 ### Documentation Resources
 - **Setup Issues:** Check [SETUP.md](SETUP.md) troubleshooting section
