@@ -24,6 +24,7 @@ export interface Config {
   frontendUrl: string;
   rateLimitWindowMs: number;
   rateLimitMax: number;
+  recommenderUrl: string;
 }
 
 const getEnvVar = (key: string, defaultValue?: string): string => {
@@ -35,7 +36,7 @@ const getEnvVar = (key: string, defaultValue?: string): string => {
 };
 
 export const config: Config = {
-  port: parseInt(getEnvVar('PORT', '5000'), 10),
+  port: parseInt(getEnvVar('PORT', '5050'), 10),
   nodeEnv: getEnvVar('NODE_ENV', 'development'),
   databaseUrl: getEnvVar('DATABASE_URL'),
   jwtSecret: getEnvVar('JWT_SECRET'),
@@ -43,4 +44,5 @@ export const config: Config = {
   frontendUrl: getEnvVar('FRONTEND_URL', 'http://localhost:8080'),
   rateLimitWindowMs: parseInt(getEnvVar('RATE_LIMIT_WINDOW_MS', '900000'), 10),
   rateLimitMax: parseInt(getEnvVar('RATE_LIMIT_MAX', '100'), 10),
+  recommenderUrl: getEnvVar('RECOMMENDER_URL', 'http://localhost:8000'),
 }; 

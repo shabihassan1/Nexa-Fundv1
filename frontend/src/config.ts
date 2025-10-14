@@ -1,5 +1,5 @@
 // Get the API URL from environment variables, with a fallback for local development
-const API_URL_FROM_ENV = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const API_URL_FROM_ENV = import.meta.env.VITE_API_URL || 'http://localhost:5050';
 
 // Export the base URL (e.g., http://localhost:5000)
 export const API_BASE_URL = API_URL_FROM_ENV.replace(/\/api\/?$/, '');

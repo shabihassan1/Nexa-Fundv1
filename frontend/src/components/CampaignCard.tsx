@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import StoredImage from "@/components/ui/StoredImage";
+import { TopMatchBadge, RecommendedBadge, TrendingBadge, EndingSoonBadge, BadgeContainer } from "./RecommendationBadge";
 
 // Update the interface to match the backend data structure
 interface Campaign {
@@ -23,13 +24,23 @@ interface Campaign {
   _count?: {
     contributions: number;
   };
+  // Recommendation data
+  recommendationScore?: number;
+  badge?: 'top_match' | 'recommended' | 'other' | 'trending';
+  scores?: {
+    interest?: number;
+    collaborative?: number;
+    content?: number;
+    trending?: number;
+  };
 }
 
 interface CampaignCardProps {
   campaign: Campaign;
+  showRecommendationBadge?: boolean;
 }
 
-const CampaignCard = ({ campaign }: CampaignCardProps) => {
+const CampaignCard = ({ campaign, showRecommendationBadge = false }: CampaignCardProps) => {
   // Calculate progress percentage
   const progress = Math.min(Math.round(((campaign.currentAmount || 0) / (campaign.targetAmount || 1)) * 100), 100);
 
@@ -72,9 +83,31 @@ const CampaignCard = ({ campaign }: CampaignCardProps) => {
             className="w-full h-full object-cover transition-transform hover:scale-105"
             fallbackSrc="/placeholder.svg"
           />
+          
+          {/* Category badge - top right */}
           <div className="absolute top-2 right-2 bg-white py-1 px-2 rounded-full text-xs font-medium">
             {campaign.category}
           </div>
+          
+          {/* Recommendation badges - top left */}
+          {showRecommendationBadge && (
+            <div className="absolute top-2 left-2">
+              <BadgeContainer>
+                {campaign.badge === 'top_match' && campaign.recommendationScore && (
+                  <TopMatchBadge score={campaign.recommendationScore} />
+                )}
+                {campaign.badge === 'recommended' && campaign.recommendationScore && (
+                  <RecommendedBadge score={campaign.recommendationScore} />
+                )}
+                {campaign.badge === 'trending' && (
+                  <TrendingBadge />
+                )}
+                {daysLeft !== null && daysLeft <= 7 && daysLeft > 0 && (
+                  <EndingSoonBadge daysLeft={daysLeft} />
+                )}
+              </BadgeContainer>
+            </div>
+          )}
         </div>
         
         <CardContent className="p-4">

@@ -3,11 +3,11 @@ import { useState } from 'react';
 
 const categories = [
   { id: 'all', name: 'All Projects' },
-  { id: 'tech', name: 'Technology' },
-  { id: 'creative', name: 'Creative' },
-  { id: 'community', name: 'Community' },
-  { id: 'education', name: 'Education' },
-  { id: 'environment', name: 'Environment' },
+  { id: 'Technology', name: 'Technology' },
+  { id: 'Arts', name: 'Creative' },
+  { id: 'Community', name: 'Community' },
+  { id: 'Education', name: 'Education' },
+  { id: 'Environment', name: 'Environment' },
 ];
 
 interface CategoryFilterProps {

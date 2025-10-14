@@ -37,33 +37,42 @@ export const campaignController = {
         where.creatorId = creatorId as string;
       }
       
-      // Get campaigns with pagination
-      const campaigns = await prisma.campaign.findMany({
-        where,
-        include: {
-          creator: {
-            select: {
-              id: true,
-              name: true,
-              walletAddress: true,
-              isVerified: true
+      // Parallelize queries for better performance
+      const [campaigns, total] = await Promise.all([
+        prisma.campaign.findMany({
+          where,
+          select: {
+            id: true,
+            title: true,
+            description: true,
+            imageUrl: true,
+            targetAmount: true,
+            currentAmount: true,
+            category: true,
+            status: true,
+            startDate: true,
+            endDate: true,
+            createdAt: true,
+            creator: {
+              select: {
+                id: true,
+                name: true,
+                walletAddress: true,
+                isVerified: true
+              }
+            },
+            _count: {
+              select: {
+                contributions: true
+              }
             }
           },
-          _count: {
-            select: {
-              contributions: true,
-              milestones: true,
-              reports: true
-            }
-          }
-        },
-        skip,
-        take: Number(limit),
-        orderBy: { createdAt: 'desc' }
-      });
-      
-      // Get total count for pagination
-      const total = await prisma.campaign.count({ where });
+          skip,
+          take: Number(limit),
+          orderBy: { createdAt: 'desc' }
+        }),
+        prisma.campaign.count({ where })
+      ]);
       
       return res.status(200).json({
         campaigns,
@@ -89,7 +98,28 @@ export const campaignController = {
       
       const campaign = await prisma.campaign.findUnique({
         where: { id },
-        include: {
+        select: {
+          id: true,
+          title: true,
+          description: true,
+          story: true,
+          imageUrl: true,
+          additionalMedia: true,
+          targetAmount: true,
+          currentAmount: true,
+          escrowAmount: true,
+          releasedAmount: true,
+          contractAddress: true,
+          category: true,
+          status: true,
+          riskScore: true,
+          isFraudulent: true,
+          requiresMilestones: true,
+          startDate: true,
+          endDate: true,
+          createdAt: true,
+          updatedAt: true,
+          creatorId: true,
           creator: {
             select: {
               id: true,
@@ -98,21 +128,11 @@ export const campaignController = {
               isVerified: true
             }
           },
-          milestones: true,
-          rewardTiers: {
-            include: {
-              _count: {
-                select: {
-                  contributions: true
-                }
-              }
-            },
-            orderBy: { minimumAmount: 'asc' }
-          },
           _count: {
             select: {
               contributions: true,
-              reports: true
+              milestones: true,
+              rewardTiers: true
             }
           }
         }

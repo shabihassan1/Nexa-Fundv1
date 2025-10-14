@@ -91,6 +91,40 @@ router.get('/:id/milestones/stats', (req, res) => {
 });
 
 /**
+ * @route   GET /api/campaigns/:id/rewards
+ * @desc    Get reward tiers for a campaign
+ * @access  Public
+ */
+router.get('/:id/rewards', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { prisma } = await import('../config/database');
+    
+    const rewardTiers = await prisma.rewardTier.findMany({
+      where: { campaignId: id },
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        minimumAmount: true,
+        createdAt: true,
+        _count: {
+          select: {
+            contributions: true
+          }
+        }
+      },
+      orderBy: { minimumAmount: 'asc' }
+    });
+    
+    res.json(rewardTiers);
+  } catch (error) {
+    console.error('Error fetching reward tiers:', error);
+    res.status(500).json({ error: 'Failed to fetch reward tiers' });
+  }
+});
+
+/**
  * @route   GET /api/campaigns/:id/milestones/validate
  * @desc    Validate milestone requirements for a campaign
  * @access  Private (creator only)

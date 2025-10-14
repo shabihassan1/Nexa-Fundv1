@@ -5,12 +5,16 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
+import compression from 'compression';
 import rateLimit from 'express-rate-limit';
 import { prisma } from './config/database';
 import routes from './routes';
 import path from 'path';
 
 const app = express();
+
+// Enable gzip compression for all responses
+app.use(compression());
 
 // Security middleware with explicit headers
 app.use(helmet({

@@ -33,7 +33,6 @@ import {
   ChevronRight
 } from "lucide-react";
 import { fetchCampaignById } from "@/services/campaignService";
-import { fetchUserById } from "@/services/userService";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/contexts/AuthContext";
 import StoredImage from "@/components/ui/StoredImage";
@@ -97,21 +96,33 @@ const CampaignDetails = () => {
     enabled: !!id
   });
 
-  const { data: creator, isLoading: creatorLoading } = useQuery({
-    queryKey: ['user', campaign?.creatorId],
-    queryFn: () => {
-      if (campaign?.creatorId && token) {
-        return fetchUserById(campaign.creatorId, token)
-          .catch(err => {
-            console.error("Error fetching creator:", err);
-            return null;
-          });
-      }
-      return Promise.resolve(null);
+  // Lazy load reward tiers only when rewards tab is selected
+  const { data: rewardTiers, isLoading: rewardTiersLoading } = useQuery({
+    queryKey: ['campaign', id, 'rewards'],
+    queryFn: async () => {
+      const response = await fetch(`${API_URL}/campaigns/${id}/rewards`);
+      if (!response.ok) throw new Error('Failed to fetch reward tiers');
+      return response.json();
     },
-    enabled: !!campaign?.creatorId && !!token,
-    retry: false
+    enabled: !!id && selectedTab === 'rewards'
   });
+
+  // Creator data is already included in campaign.creator, no need for separate query
+  // const { data: creator, isLoading: creatorLoading } = useQuery({
+  //   queryKey: ['user', campaign?.creatorId],
+  //   queryFn: () => {
+  //     if (campaign?.creatorId && token) {
+  //       return fetchUserById(campaign.creatorId, token)
+  //         .catch(err => {
+  //           console.error("Error fetching creator:", err);
+  //           return null;
+  //         });
+  //     }
+  //     return Promise.resolve(null);
+  //   },
+  //   enabled: !!campaign?.creatorId && !!token,
+  //   retry: false
+  // });
 
   // Vote on milestone mutation
   const voteOnMilestone = useMutation({
@@ -373,9 +384,9 @@ const CampaignDetails = () => {
 
   const daysLeft = calculateDaysLeft();
 
-  // Get creator name safely
+  // Get creator name safely from campaign data
   const getCreatorName = () => {
-    if (creatorLoading) {
+    if (campaignLoading) {
       return <Skeleton className="h-4 w-24 inline-block" />;
     }
     
@@ -383,15 +394,11 @@ const CampaignDetails = () => {
       return campaign.creator.name;
     }
     
-    if (creator && typeof creator === 'object') {
-      return creator.name || 'Anonymous';
-    }
-    
     if (campaign?.creator?.walletAddress) {
       return `${campaign.creator.walletAddress.slice(0, 6)}...${campaign.creator.walletAddress.slice(-4)}`;
     }
     
-    return 'Anonymous Creator';
+    return 'Anonymous';
   };
 
   // Process additionalMedia to ensure it's an array
@@ -714,19 +721,26 @@ const CampaignDetails = () => {
               )}
 
               {selectedTab === 'rewards' && (
-                <RewardTiers 
-                  rewardTiers={campaign.rewardTiers || []} 
-                  showSelectButton={!isCreator}
-                  isCreator={isCreator}
-                  onSelectTier={(tier) => {
-                    if (!isCreator) {
-                      toast({
-                        title: "Reward Selected",
-                        description: `You selected the "${tier.title}" reward tier for ${formatCurrency(tier.minimumAmount)}+. Click "Back This Project" to proceed.`,
-                      });
-                    }
-                  }}
-                />
+                rewardTiersLoading ? (
+                  <div className="space-y-4">
+                    <Skeleton className="h-32 w-full" />
+                    <Skeleton className="h-32 w-full" />
+                  </div>
+                ) : (
+                  <RewardTiers 
+                    rewardTiers={rewardTiers || []} 
+                    showSelectButton={!isCreator}
+                    isCreator={isCreator}
+                    onSelectTier={(tier) => {
+                      if (!isCreator) {
+                        toast({
+                          title: "Reward Selected",
+                          description: `You selected the "${tier.title}" reward tier for ${formatCurrency(tier.minimumAmount)}+. Click "Back This Project" to proceed.`,
+                        });
+                      }
+                    }}
+                  />
+                )
               )}
 
               {selectedTab === 'updates' && (
@@ -854,41 +868,22 @@ const CampaignDetails = () => {
                   <Separator className="my-6" />
 
                   {/* Reward Tiers Preview */}
-                  {campaign.rewardTiers && campaign.rewardTiers.length > 0 && (
+                  {campaign._count?.rewardTiers > 0 && (
                     <>
                       <div>
                         <h3 className="font-medium mb-3 flex items-center">
                           <Gift className="h-4 w-4 mr-2" />
-                          Reward Tiers
+                          Reward Tiers ({campaign._count.rewardTiers})
                         </h3>
-                        <div className="space-y-2">
-                          {campaign.rewardTiers
-                            .sort((a: any, b: any) => a.minimumAmount - b.minimumAmount)
-                            .slice(0, 2)
-                            .map((tier: any) => (
-                              <div key={tier.id} className="bg-gray-50 p-3 rounded-lg">
-                                <div className="flex items-center justify-between mb-1">
-                                  <span className="font-medium text-sm">{tier.title}</span>
-                                  <span className="text-green-600 font-medium text-sm">
-                                    {formatCurrency(tier.minimumAmount)}+
-                                  </span>
-                                </div>
-                                <p className="text-xs text-gray-600 line-clamp-2">
-                                  {tier.description}
-                                </p>
-                              </div>
-                            ))}
-                        </div>
-                        {campaign.rewardTiers.length > 2 && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="w-full mt-3"
-                            onClick={() => setSelectedTab('rewards')}
-                          >
-                            View All {campaign.rewardTiers.length} Rewards
-                          </Button>
-                        )}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full"
+                          onClick={() => setSelectedTab('rewards')}
+                        >
+                          <Gift className="h-4 w-4 mr-2" />
+                          View All {campaign._count.rewardTiers} Rewards
+                        </Button>
                       </div>
                       
                       <Separator className="my-6" />

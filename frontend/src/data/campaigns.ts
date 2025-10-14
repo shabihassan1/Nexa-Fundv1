@@ -128,6 +128,7 @@ export const categories = [
   "Film & Video",
   "Fashion",
   "Games",
-  "Art",
+  "Arts",
+  "Community",
   "Health & Fitness"
 ];
