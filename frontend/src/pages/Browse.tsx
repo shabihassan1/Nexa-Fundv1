@@ -25,14 +25,21 @@ const Browse = () => {
   const campaigns = Array.isArray(data?.campaigns) ? data?.campaigns : [];
   
   // Recommendations query (only when logged in)
-  const { data: recosData } = useQuery({
-    queryKey: ['recommendations', user?.id, user?.bio],
+  const { data: recosData, isError: recosError, isLoading: recosLoading } = useQuery({
+    queryKey: ['recommendations', user?.id],
     queryFn: async () => {
       if (!isAuthenticated || !user?.id) return null;
-      const result = await fetchRecommendations({ donor_id: user.id, top_k: 50 });
-      return result;
+      try {
+        const result = await fetchRecommendations({ donor_id: user.id, top_k: 50 });
+        return result;
+      } catch (error) {
+        console.warn('⚠️ Recommendation service unavailable:', error);
+        return null; // Fallback to showing all campaigns
+      }
     },
     enabled: isAuthenticated && !!user?.id,
+    retry: 1, // Only retry once
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   });
 
   // Map recommendation order for sorting
@@ -111,7 +118,14 @@ const Browse = () => {
         <div className="py-8 bg-gray-50">
           <div className="container">
             <h1 className="text-3xl font-bold mb-2">Discover Campaigns</h1>
-            <p className="text-gray-600 mb-8">Find and support innovative projects that matter to you</p>
+            <p className="text-gray-600 mb-8">
+              Find and support innovative projects that matter to you
+              {isAuthenticated && recommendedOrder.size > 0 && (
+                <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                  🎯 Personalized for you
+                </span>
+              )}
+            </p>
             
             <div className="flex flex-col md:flex-row gap-4 mb-8">
               <div className="relative flex-grow">

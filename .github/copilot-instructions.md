@@ -1,5 +1,6 @@
 # Copilot Instructions
 
+Stop making summary docs for each things you do.
 ## Windows PowerShell Environment
 - ❌ Never use `&&` (not supported in Windows)
 - ✅ Use semicolons `;` to chain commands
@@ -11,7 +12,7 @@
 - ✅ Keep existing docs minimal and focused
 
 ## Code Structure Rules
-- ✅ Keep files modular and under 300 lines
+- ✅ Keep files modular 
 - ✅ Split large files into smaller, focused modules
 - ✅ Separate business logic from UI components
 - ✅ Extract reusable utilities into separate files

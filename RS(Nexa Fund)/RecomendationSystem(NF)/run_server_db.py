@@ -13,7 +13,7 @@ def main():
     print("=" * 60)
     print("📊 Data Source: PostgreSQL Database via Backend API")
     print("🔗 Backend URL: http://localhost:5050/api")
-    print("🌐 Recommender URL: http://localhost:8001")
+    print("🌐 Recommender URL: http://localhost:8000")
     print("=" * 60)
     
     # Check if required files exist
@@ -40,7 +40,7 @@ def main():
             print("✅ Backend is accessible")
         else:
             print(f"⚠️  Backend responded with status: {response.status_code}")
-    except Exception as e:
+    except (requests.RequestException, ConnectionError, TimeoutError) as e:
         print(f"⚠️  Could not reach backend: {e}")
         print("Make sure your backend is running on http://localhost:5050")
     
@@ -54,8 +54,8 @@ def main():
     print("   • GET  /test - Test endpoint with database data")
     print("   • POST /refresh - Refresh data and retrain model")
     
-    print("\n📖 Interactive docs: http://localhost:8001/docs")
-    print("📖 ReDoc docs: http://localhost:8001/redoc")
+    print("\n📖 Interactive docs: http://localhost:8000/docs")
+    print("📖 ReDoc docs: http://localhost:8000/redoc")
     print("=" * 60)
     
     # Start the FastAPI server
@@ -64,13 +64,13 @@ def main():
         uvicorn.run(
             "fastapi_app_db:app",
             host="0.0.0.0",
-            port=8001,
+            port=8000,
             reload=True,
             log_level="info"
         )
     except KeyboardInterrupt:
         print("\n🛑 Server stopped by user")
-    except Exception as e:
+    except (ImportError, OSError, RuntimeError) as e:
         print(f"❌ Error starting server: {e}")
         return False
     

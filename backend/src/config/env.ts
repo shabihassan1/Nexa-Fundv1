@@ -44,5 +44,5 @@ export const config: Config = {
   frontendUrl: getEnvVar('FRONTEND_URL', 'http://localhost:8080'),
   rateLimitWindowMs: parseInt(getEnvVar('RATE_LIMIT_WINDOW_MS', '900000'), 10),
   rateLimitMax: parseInt(getEnvVar('RATE_LIMIT_MAX', '100'), 10),
-  recommenderUrl: getEnvVar('RECOMMENDER_URL', 'http://localhost:8001'),
+  recommenderUrl: getEnvVar('RECOMMENDER_URL', 'http://localhost:8000'),
 }; 
