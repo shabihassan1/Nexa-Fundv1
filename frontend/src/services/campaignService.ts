@@ -113,3 +113,71 @@ export const deleteCampaign = async (id: string, token: string) => {
   if (!res.ok) throw new Error('Failed to delete campaign');
   return true;
 };
+
+// Milestone Voting API Functions
+
+export const fetchActiveMilestone = async (campaignId: string) => {
+  const token = localStorage.getItem('token');
+  const res = await fetch(`${API_URL}/campaigns/${campaignId}/active-milestone`, {
+    headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+  });
+  if (!res.ok) {
+    if (res.status === 404) return null; // No active milestone
+    throw new Error('Failed to fetch active milestone');
+  }
+  return res.json();
+};
+
+export const fetchMilestoneVotingStats = async (milestoneId: string, token?: string) => {
+  const res = await fetch(`${API_URL}/milestones/${milestoneId}/voting-stats`, {
+    headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+  });
+  if (!res.ok) throw new Error('Failed to fetch voting stats');
+  return res.json();
+};
+
+export const submitMilestoneForVoting = async (
+  milestoneId: string,
+  evidence: {
+    description: string;
+    files: Array<{ url: string; name: string }>;
+    links: string[];
+  },
+  token: string
+) => {
+  const res = await fetch(`${API_URL}/milestones/${milestoneId}/submit-for-voting`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify(evidence)
+  });
+  if (!res.ok) throw new Error('Failed to submit milestone');
+  return res.json();
+};
+
+export const voteOnMilestone = async (
+  milestoneId: string,
+  voteData: {
+    isApproval: boolean;
+    comment?: string;
+    voterPrivateKey: string;
+  },
+  token: string
+) => {
+  const res = await fetch(`${API_URL}/milestones/${milestoneId}/vote-weighted`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify(voteData)
+  });
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(error.error || 'Failed to cast vote');
+  }
+  return res.json();
+};
+

@@ -84,9 +84,16 @@ export const contributionController = {
         return;
       }
       
-      // Check if campaign exists
+      // Check if campaign exists and get active milestone
       const campaign = await prisma.campaign.findUnique({
-        where: { id: campaignId }
+        where: { id: campaignId },
+        include: {
+          milestones: {
+            where: { status: 'ACTIVE' },
+            orderBy: { order: 'asc' },
+            take: 1
+          }
+        }
       });
       
       if (!campaign) {
@@ -98,6 +105,42 @@ export const contributionController = {
       if (campaign.creatorId === userId) {
         res.status(403).json({ error: 'Cannot back your own campaign' });
         return;
+      }
+
+      // Check if campaign requires milestones
+      if (campaign.requiresMilestones) {
+        // Check if there's an active milestone
+        const activeMilestone = campaign.milestones[0];
+        
+        if (!activeMilestone) {
+          res.status(400).json({ 
+            error: 'No active milestone available for contributions',
+            message: 'This campaign currently has no active milestone accepting contributions.' 
+          });
+          return;
+        }
+
+        // Check if active milestone is fully funded
+        if (activeMilestone.currentAmount >= activeMilestone.amount) {
+          res.status(400).json({ 
+            error: 'Active milestone is fully funded',
+            message: `Milestone "${activeMilestone.title}" has reached its funding goal. Please wait for the next milestone.` 
+          });
+          return;
+        }
+
+        // Check if contribution would exceed milestone target
+        const contributionAmount = parseFloat(amount);
+        const remainingAmount = activeMilestone.amount - activeMilestone.currentAmount;
+        
+        if (contributionAmount > remainingAmount) {
+          res.status(400).json({ 
+            error: 'Contribution exceeds milestone target',
+            message: `This contribution would exceed the milestone goal. Maximum contribution allowed: $${remainingAmount.toFixed(2)}`,
+            remainingAmount 
+          });
+          return;
+        }
       }
       
       // Check if transaction hash already exists (prevent double spending)
@@ -161,6 +204,33 @@ export const contributionController = {
           }
         }
       });
+
+      // Update active milestone's current amount if campaign requires milestones
+      if (campaign.requiresMilestones && campaign.milestones[0]) {
+        const activeMilestone = campaign.milestones[0];
+        const newCurrentAmount = activeMilestone.currentAmount + parseFloat(amount);
+        const targetAmount = parseFloat(activeMilestone.amount.toString());
+        
+        // Update the milestone's current amount
+        await prisma.milestone.update({
+          where: { id: activeMilestone.id },
+          data: {
+            currentAmount: {
+              increment: parseFloat(amount)
+            }
+          }
+        });
+
+        // If milestone is now fully funded, change status from ACTIVE to PENDING
+        // This allows the creator to submit proof and start the voting process
+        if (newCurrentAmount >= targetAmount && activeMilestone.status === 'ACTIVE') {
+          await prisma.milestone.update({
+            where: { id: activeMilestone.id },
+            data: { status: 'PENDING' }
+          });
+          console.log(`✅ Milestone ${activeMilestone.order} fully funded - changed to PENDING status`);
+        }
+      }
       
       // Trigger ML model refresh in background (non-blocking)
       // This updates collaborative filtering with new contribution data

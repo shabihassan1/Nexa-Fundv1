@@ -471,6 +471,189 @@ export class MilestoneController {
       res.status(500).json({ error: 'Failed to update milestone' });
     }
   }
+
+  // ==================== NEW: MILESTONE VOTING ENDPOINTS ====================
+
+  /**
+   * Get voting statistics for a milestone
+   * GET /api/milestones/:milestoneId/voting-stats
+   */
+  static async getVotingStats(req: Request, res: Response): Promise<void> {
+    try {
+      const { milestoneId } = req.params;
+
+      const stats = await MilestoneService.getMilestoneVotingStats(milestoneId);
+
+      res.json(stats);
+    } catch (error: any) {
+      safeLog('Error in getVotingStats controller', { error: error?.message });
+      res.status(500).json({ error: error?.message || 'Failed to get voting statistics' });
+    }
+  }
+
+  /**
+   * Manually trigger release check (admin only, or can be called by cron job)
+   * POST /api/milestones/:milestoneId/check-release
+   */
+  static async triggerReleaseCheck(req: Request, res: Response): Promise<void> {
+    try {
+      const { milestoneId } = req.params;
+
+      const result = await MilestoneService.checkAndReleaseMilestone(milestoneId);
+
+      res.json({
+        released: result.released,
+        rejected: result.rejected,
+        approvalPercentage: result.approvalPercentage,
+        quorumPercentage: result.quorumPercentage,
+        yesVotes: result.yesVotes,
+        noVotes: result.noVotes,
+        transactionHash: result.transactionHash,
+        message: result.released 
+          ? 'Milestone released successfully' 
+          : result.rejected
+          ? 'Milestone rejected (conditions not met)'
+          : 'Milestone voting continues (conditions not yet met)'
+      });
+    } catch (error: any) {
+      safeLog('Error in triggerReleaseCheck controller', { error: error?.message });
+      res.status(500).json({ error: error?.message || 'Failed to check release' });
+    }
+  }
+
+  /**
+   * Submit milestone for voting (creator only)
+   * POST /api/milestones/:milestoneId/submit-for-voting
+   */
+  static async submitForVoting(req: Request, res: Response): Promise<void> {
+    try {
+      const { milestoneId } = req.params;
+      const userId = req.user?.id;
+
+      if (!userId) {
+        res.status(401).json({ error: 'Authentication required' });
+        return;
+      }
+
+      const { description, files, links } = req.body;
+
+      if (!description) {
+        res.status(400).json({ error: 'Evidence description is required' });
+        return;
+      }
+
+      const evidence = {
+        description,
+        files: files || [],
+        links: links || []
+      };
+
+      const milestone = await MilestoneService.submitMilestoneForVoting(
+        milestoneId,
+        userId,
+        evidence
+      );
+
+      res.json({
+        message: 'Milestone submitted for voting successfully',
+        milestone
+      });
+    } catch (error: any) {
+      safeLog('Error in submitForVoting controller', { error: error?.message });
+      res.status(500).json({ error: error?.message || 'Failed to submit milestone' });
+    }
+  }
+
+  /**
+   * Vote on milestone with weighted voting
+   * POST /api/milestones/:milestoneId/vote-weighted
+   */
+  static async voteWeighted(req: Request, res: Response): Promise<void> {
+    try {
+      const { milestoneId } = req.params;
+      const userId = req.user?.id;
+
+      if (!userId) {
+        res.status(401).json({ error: 'Authentication required' });
+        return;
+      }
+
+      const { isApproval, comment, voterPrivateKey } = req.body;
+
+      if (typeof isApproval !== 'boolean') {
+        res.status(400).json({ error: 'isApproval must be a boolean' });
+        return;
+      }
+
+      const result = await MilestoneService.voteOnMilestoneWeighted(
+        milestoneId,
+        userId,
+        isApproval,
+        comment,
+        voterPrivateKey
+      );
+
+      // Get updated voting stats
+      const stats = await MilestoneService.getMilestoneVotingStats(milestoneId);
+
+      res.json({
+        message: 'Vote cast successfully',
+        vote: result.vote,
+        stats
+      });
+    } catch (error: any) {
+      safeLog('Error in voteWeighted controller', { error: error?.message });
+      res.status(500).json({ error: error?.message || 'Failed to cast vote' });
+    }
+  }
+
+  /**
+   * Open voting for a milestone (admin only)
+   * POST /api/milestones/:milestoneId/open-voting
+   */
+  static async openVoting(req: Request, res: Response): Promise<void> {
+    try {
+      const { milestoneId } = req.params;
+
+      const milestone = await MilestoneService.openVotingForMilestone(milestoneId);
+
+      res.json({
+        message: 'Voting opened successfully',
+        milestone
+      });
+    } catch (error: any) {
+      safeLog('Error in openVoting controller', { error: error?.message });
+      res.status(500).json({ error: error?.message || 'Failed to open voting' });
+    }
+  }
+
+  /**
+   * Manually trigger the milestone release cron job (admin only)
+   * POST /api/milestones/admin/trigger-release-check
+   * 
+   * Useful for testing or forcing an immediate check of expired voting periods
+   */
+  static async manualReleaseCheck(req: Request, res: Response): Promise<void> {
+    try {
+      safeLog('Manual release check triggered by admin', { userId: req.user?.id });
+
+      // Import and run the cron job manually
+      const { triggerManualCheck } = await import('../jobs/milestoneReleaseJob');
+      
+      // Run in background and return immediately
+      triggerManualCheck().catch((error: any) => {
+        console.error('Manual release check error:', error?.message);
+      });
+
+      res.json({
+        message: 'Milestone release check triggered successfully',
+        note: 'Process is running in background. Check server logs for results.'
+      });
+    } catch (error: any) {
+      safeLog('Error in manualReleaseCheck controller', { error: error?.message });
+      res.status(500).json({ error: error?.message || 'Failed to trigger release check' });
+    }
+  }
 }
 
 export default MilestoneController; 

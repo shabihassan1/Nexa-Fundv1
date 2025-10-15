@@ -20,6 +20,7 @@ interface MilestoneListProps {
     title: string;
     description: string;
     amount: number;
+    currentAmount?: number;
     order: number;
     status: string;
     deadline: string;

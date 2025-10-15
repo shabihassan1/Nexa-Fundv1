@@ -104,6 +104,10 @@ model Campaign {
   requiresMilestones Boolean @default(false) // Auto-calculated based on target amount
   startDate     DateTime
   endDate       DateTime
+  
+  // NEW: Active milestone tracking
+  activeMilestoneId String? // ID of currently active milestone
+  
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -111,6 +115,7 @@ model Campaign {
   creator       User     @relation(fields: [creatorId], references: [id])
   creatorId     String
   milestones    Milestone[]
+  activeMilestone Milestone? @relation("ActiveMilestone", fields: [activeMilestoneId], references: [id], onDelete: SetNull)
   contributions Contribution[]
   reports       Report[]
   rewardTiers   RewardTier[]
@@ -146,7 +151,8 @@ model Milestone {
   id          String   @id @default(cuid())
   title       String
   description String
-  amount      Float
+  amount      Float    // Target amount for this milestone
+  currentAmount Float  @default(0) // Current amount raised for this milestone
   order       Int      // Order of milestone (1, 2, 3, etc.)
   status      MilestoneStatus @default(PENDING)
   deadline    DateTime
@@ -159,6 +165,13 @@ model Milestone {
   votesFor    Int      @default(0)
   votesAgainst Int     @default(0)
   votingDeadline DateTime? // When voting period ends
+  
+  // NEW: Voting system fields
+  voteStartTime    DateTime? // When voting opened
+  voteEndTime      DateTime? // When voting closes
+  blockchainMilestoneIndex Int? // Index in smart contract milestones array
+  releaseTransactionHash   String? // TX hash when funds released
+  
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -168,6 +181,7 @@ model Milestone {
   votes       Vote[]
   submissions MilestoneSubmission[]
   escrowTransactions EscrowTransaction[]
+  activeCampaigns Campaign[] @relation("ActiveMilestone") // Campaigns where this is the active milestone
 
   @@map("milestones")
 }
@@ -313,6 +327,7 @@ enum ReportStatus {
 
 enum MilestoneStatus {
   PENDING      // Awaiting creator submission
+  ACTIVE       // Currently accepting contributions (only one milestone at a time)
   SUBMITTED    // Submitted by creator, awaiting review
   VOTING       // Under community voting
   APPROVED     // Approved and funds released

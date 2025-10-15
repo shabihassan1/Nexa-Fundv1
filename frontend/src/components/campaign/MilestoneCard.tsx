@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardHeader, CardContent, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -18,6 +18,9 @@ import {
   Eye
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { VotingStats } from './VotingStats';
+import { VoteButtons } from './VoteButtons';
+import MilestoneSubmissionModal from './MilestoneSubmissionModal';
 
 interface MilestoneCardProps {
   milestone: {
@@ -25,6 +28,7 @@ interface MilestoneCardProps {
     title: string;
     description: string;
     amount: number;
+    currentAmount?: number;
     order: number;
     status: string;
     deadline: string;
@@ -54,25 +58,36 @@ interface MilestoneCardProps {
       status: string;
     }>;
   };
+  campaignId?: string;
   isCreator?: boolean;
   isAuthenticated?: boolean;
+  userHasVoted?: boolean;
+  userVotingPower?: number;
+  token?: string;
   onVote?: (milestoneId: string, isApproval: boolean) => void;
   onEdit?: (milestoneId: string) => void;
   onSubmit?: (milestoneId: string) => void;
   onViewDetails?: (milestoneId: string) => void;
+  onRefetch?: () => void;
   isVoting?: boolean;
 }
 
 const MilestoneCard: React.FC<MilestoneCardProps> = ({
   milestone,
+  campaignId,
   isCreator = false,
   isAuthenticated = false,
+  userHasVoted = false,
+  userVotingPower = 0,
+  token,
   onVote,
   onEdit,
   onSubmit,
   onViewDetails,
+  onRefetch,
   isVoting = false
 }) => {
+  const [showSubmissionModal, setShowSubmissionModal] = useState(false);
   // Local formatCurrency function
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -166,14 +181,14 @@ const MilestoneCard: React.FC<MilestoneCardProps> = ({
                   <Edit className="h-4 w-4" />
                 </Button>
               )}
-              {milestone.status === 'PENDING' && onSubmit && (
+              {(milestone.status === 'PENDING' || milestone.status === 'ACTIVE') && onSubmit && (
                 <Button
                   size="sm"
-                  onClick={() => onSubmit(milestone.id)}
+                  onClick={() => setShowSubmissionModal(true)}
                   className="bg-blue-600 hover:bg-blue-700"
                 >
                   <Upload className="h-4 w-4 mr-1" />
-                  Submit
+                  Submit for Voting
                 </Button>
               )}
               {onViewDetails && (
@@ -191,6 +206,33 @@ const MilestoneCard: React.FC<MilestoneCardProps> = ({
       </CardHeader>
 
       <CardContent className="space-y-4">
+        {/* Funding Progress */}
+        {milestone.currentAmount !== undefined && (
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium text-gray-700">Funding Progress</span>
+              <span className="text-sm font-bold text-gray-900">
+                {formatCurrency(milestone.currentAmount)} / {formatCurrency(milestone.amount)}
+              </span>
+            </div>
+            <Progress 
+              value={(milestone.currentAmount / milestone.amount) * 100} 
+              className="h-2"
+            />
+            <div className="flex items-center justify-between mt-2">
+              <span className="text-xs text-gray-600">
+                {((milestone.currentAmount / milestone.amount) * 100).toFixed(1)}% funded
+              </span>
+              {milestone.currentAmount >= milestone.amount && (
+                <span className="text-xs font-medium text-green-600 flex items-center">
+                  <CheckCircle className="h-3 w-3 mr-1" />
+                  Fully Funded!
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Description */}
         <p className="text-gray-700 leading-relaxed">{milestone.description}</p>
 
@@ -228,84 +270,67 @@ const MilestoneCard: React.FC<MilestoneCardProps> = ({
           </div>
         )}
 
-        {/* Voting Section */}
-        {(milestone.status === 'VOTING' || milestone.status === 'SUBMITTED' || totalVotes > 0) && (
+        {/* Pending Milestone Fully Funded Notice */}
+        {milestone.status === 'PENDING' && milestone.currentAmount && milestone.currentAmount >= milestone.amount && (
+          <>
+            <Separator />
+            <div className="text-center bg-green-50 border border-green-200 rounded-lg p-4">
+              <CheckCircle className="h-8 w-8 mx-auto mb-2 text-green-600" />
+              <h4 className="font-medium text-green-900 mb-1">🎉 Milestone Fully Funded!</h4>
+              <p className="text-sm text-green-700 mb-2">
+                This milestone has reached its funding goal of {formatCurrency(milestone.amount)}
+              </p>
+              {isCreator && (
+                <p className="text-xs text-green-600 font-medium">
+                  📝 Submit proof of completion to start the voting process and release funds
+                </p>
+              )}
+              {!isCreator && (
+                <p className="text-xs text-green-600">
+                  Waiting for creator to submit proof of completion
+                </p>
+              )}
+            </div>
+          </>
+        )}
+
+        {/* Voting Section - New Weighted Voting UI */}
+        {milestone.status === 'VOTING' && (
           <>
             <Separator />
             <div className="bg-gray-50 rounded-lg p-4">
-              <div className="flex items-center justify-between mb-3">
-                <h4 className="font-medium text-gray-900 flex items-center">
-                  <Users className="h-4 w-4 mr-2" />
-                  Community Voting
+              <div className="flex items-center mb-4">
+                <Users className="h-5 w-5 mr-2 text-purple-600" />
+                <h4 className="font-medium text-gray-900">
+                  Weighted Voting Active
                 </h4>
-                <div className="flex items-center space-x-4 text-sm text-gray-600">
-                  <span>{totalVotes} vote{totalVotes !== 1 ? 's' : ''}</span>
-                  {milestone.votingDeadline && (
-                    <span>
-                      Ends: {new Date(milestone.votingDeadline).toLocaleDateString()}
-                      {votingEnded && <span className="text-red-600 ml-1">(Ended)</span>}
-                    </span>
-                  )}
-                </div>
               </div>
-              
-              {totalVotes > 0 && (
-                <div className="mb-4">
-                  <div className="flex justify-between text-sm text-gray-600 mb-2">
-                    <span>Approval Rate</span>
-                    <span>{approvalRate.toFixed(1)}%</span>
-                  </div>
-                  <Progress 
-                    value={approvalRate} 
-                    className="h-3"
+
+              {/* Real-time Voting Stats */}
+              <VotingStats milestoneId={milestone.id} token={token} />
+
+              {/* Vote Buttons */}
+              {isAuthenticated && !votingEnded && (
+                <div className="mt-4">
+                  <VoteButtons
+                    milestoneId={milestone.id}
+                    userHasVoted={userHasVoted}
+                    userVotingPower={userVotingPower}
+                    onVoteSuccess={() => {
+                      if (onRefetch) onRefetch();
+                    }}
                   />
-                  <div className="flex justify-between text-xs text-gray-500 mt-1">
-                    <span className="flex items-center">
-                      <ThumbsUp className="h-3 w-3 mr-1 text-green-600" />
-                      {milestone.votesFor} approve
-                    </span>
-                    <span className="flex items-center">
-                      <ThumbsDown className="h-3 w-3 mr-1 text-red-600" />
-                      {milestone.votesAgainst} reject
-                    </span>
-                  </div>
                 </div>
               )}
-              
-              {/* Voting Buttons */}
-              {isAuthenticated && milestone.status === 'VOTING' && !votingEnded && onVote && (
-                <div className="flex space-x-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => onVote(milestone.id, true)}
-                    disabled={isVoting}
-                    className="flex-1 border-green-200 hover:bg-green-50"
-                  >
-                    <ThumbsUp className="h-4 w-4 mr-1 text-green-600" />
-                    Approve
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => onVote(milestone.id, false)}
-                    disabled={isVoting}
-                    className="flex-1 border-red-200 hover:bg-red-50"
-                  >
-                    <ThumbsDown className="h-4 w-4 mr-1 text-red-600" />
-                    Reject
-                  </Button>
-                </div>
-              )}
-              
+
               {milestone.status === 'VOTING' && votingEnded && (
-                <div className="text-center text-sm text-gray-600 bg-gray-100 rounded p-2">
+                <div className="text-center text-sm text-gray-600 bg-gray-100 rounded p-2 mt-4">
                   Voting period has ended. Results are being processed.
                 </div>
               )}
-              
-              {!isAuthenticated && milestone.status === 'VOTING' && (
-                <div className="text-center">
+
+              {!isAuthenticated && (
+                <div className="text-center mt-4">
                   <p className="text-sm text-gray-500">
                     <Link to="/login" className="text-blue-600 hover:text-blue-700 font-medium">
                       Log in
@@ -313,12 +338,17 @@ const MilestoneCard: React.FC<MilestoneCardProps> = ({
                   </p>
                 </div>
               )}
-              
-              {milestone.status === 'SUBMITTED' && (
-                <div className="text-center text-sm text-gray-600 bg-blue-50 rounded p-2">
-                  This milestone is under review. Voting will begin shortly.
-                </div>
-              )}
+            </div>
+          </>
+        )}
+
+        {/* Submitted Status */}
+        {milestone.status === 'SUBMITTED' && (
+          <>
+            <Separator />
+            <div className="text-center text-sm text-gray-600 bg-blue-50 border border-blue-200 rounded p-3">
+              <Upload className="h-5 w-5 mx-auto mb-2 text-blue-600" />
+              This milestone has been submitted for review. Voting will open automatically.
             </div>
           </>
         )}
@@ -381,6 +411,21 @@ const MilestoneCard: React.FC<MilestoneCardProps> = ({
           </div>
         )}
       </CardContent>
+
+      {/* Milestone Submission Modal */}
+      <MilestoneSubmissionModal
+        isOpen={showSubmissionModal}
+        onClose={() => setShowSubmissionModal(false)}
+        milestone={milestone}
+        onSubmit={(submissionData) => {
+          // Call the onSubmit prop if provided
+          if (onSubmit) {
+            onSubmit(milestone.id);
+          }
+          setShowSubmissionModal(false);
+          if (onRefetch) onRefetch();
+        }}
+      />
     </Card>
   );
 };

@@ -1,15 +1,16 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { Heart, Wallet, Gift, Info, AlertCircle } from 'lucide-react';
+import { Heart, Wallet, Gift, Info, AlertCircle, Target } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWallet } from '@/contexts/WalletContext';
 import { toast } from '@/hooks/use-toast';
 import { createContribution } from '@/services/contributionService';
+import { fetchActiveMilestone } from '@/services/campaignService';
 import { ethers } from 'ethers';
 import { getNativeCurrencySymbol } from '@/lib/web3';
 
@@ -17,6 +18,7 @@ interface Campaign {
   id: string;
   title: string;
   creatorId: string;
+  requiresMilestones?: boolean;
   creator?: {
     walletAddress: string;
   };
@@ -43,12 +45,33 @@ const BackingModal = ({ isOpen, onClose, campaign, onContributionSuccess }: Back
   const [amount, setAmount] = useState<string>('');
   const [selectedRewardTier, setSelectedRewardTier] = useState<RewardTier | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [activeMilestone, setActiveMilestone] = useState<any>(null);
+  const [loadingMilestone, setLoadingMilestone] = useState(true);
   
   // Get native currency symbol (POL for Tenderly VTN)
   const currencySymbol = getNativeCurrencySymbol();
 
   // Check if user is trying to back their own campaign
   const isSelfBacking = user?.id === campaign.creatorId;
+
+  // Fetch active milestone when modal opens
+  useEffect(() => {
+    if (isOpen && campaign.id) {
+      setLoadingMilestone(true);
+      fetchActiveMilestone(campaign.id)
+        .then(milestone => {
+          console.log('Active Milestone Data:', milestone);
+          setActiveMilestone(milestone);
+        })
+        .catch(err => {
+          console.error('Failed to fetch active milestone:', err);
+          setActiveMilestone(null);
+        })
+        .finally(() => {
+          setLoadingMilestone(false);
+        });
+    }
+  }, [isOpen, campaign.id]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -116,13 +139,37 @@ const BackingModal = ({ isOpen, onClose, campaign, onContributionSuccess }: Back
       return;
     }
 
-    if (!amount || parseFloat(amount) <= 0) {
+    const numericAmount = parseFloat(amount);
+
+    if (!amount || numericAmount <= 0) {
       toast({
         title: "Invalid Amount",
         description: "Please enter a valid contribution amount.",
         variant: "destructive",
       });
       return;
+    }
+
+    // Validate milestone funding limits
+    if (activeMilestone) {
+      if (activeMilestone.currentAmount >= activeMilestone.amount) {
+        toast({
+          title: "Milestone Fully Funded",
+          description: `Milestone "${activeMilestone.title}" has reached its funding goal. Please wait for the next milestone to be activated.`,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const remainingAmount = activeMilestone.amount - activeMilestone.currentAmount;
+      if (numericAmount > remainingAmount) {
+        toast({
+          title: "Amount Exceeds Milestone Goal",
+          description: `This contribution would exceed the milestone target. Maximum contribution allowed: ${formatCurrency(remainingAmount)}`,
+          variant: "destructive",
+        });
+        return;
+      }
     }
 
     if (!wallet.connected) {
@@ -333,6 +380,138 @@ const BackingModal = ({ isOpen, onClose, campaign, onContributionSuccess }: Back
         </DialogHeader>
         
         <div className="space-y-6">
+          {/* Active Milestone Info */}
+          {!loadingMilestone && activeMilestone && (
+            <div className={`border rounded-lg p-4 ${
+              activeMilestone.currentAmount >= activeMilestone.amount 
+                ? 'bg-green-50 border-green-200' 
+                : 'bg-blue-50 border-blue-200'
+            }`}>
+              <div className="flex items-start">
+                <Target className={`h-5 w-5 mr-3 mt-0.5 flex-shrink-0 ${
+                  activeMilestone.currentAmount >= activeMilestone.amount 
+                    ? 'text-green-600' 
+                    : 'text-blue-600'
+                }`} />
+                <div className="flex-1">
+                  <h4 className={`font-semibold mb-1 ${
+                    activeMilestone.currentAmount >= activeMilestone.amount 
+                      ? 'text-green-900' 
+                      : 'text-blue-900'
+                  }`}>
+                    {activeMilestone.currentAmount >= activeMilestone.amount 
+                      ? '✅ Milestone Fully Funded' 
+                      : `Contributing to Milestone #${activeMilestone.order}`
+                    }
+                  </h4>
+                  <p className={`text-sm font-medium ${
+                    activeMilestone.currentAmount >= activeMilestone.amount 
+                      ? 'text-green-800' 
+                      : 'text-blue-800'
+                  }`}>
+                    {activeMilestone.title}
+                  </p>
+                  <p className={`text-xs mt-2 ${
+                    activeMilestone.currentAmount >= activeMilestone.amount 
+                      ? 'text-green-700' 
+                      : 'text-blue-700'
+                  }`}>
+                    {activeMilestone.description}
+                  </p>
+                  
+                  {/* Funding Progress */}
+                  <div className="mt-3">
+                    <div className="flex items-center justify-between text-xs mb-1">
+                      <span className={(activeMilestone.currentAmount || 0) >= activeMilestone.amount ? 'text-green-600' : 'text-blue-600'}>
+                        ${(activeMilestone.currentAmount || 0).toLocaleString()} raised of ${(activeMilestone.amount || 0).toLocaleString()}
+                      </span>
+                      <span className={(activeMilestone.currentAmount || 0) >= activeMilestone.amount ? 'text-green-600 font-semibold' : 'text-blue-600'}>
+                        {activeMilestone.amount > 0 
+                          ? (((activeMilestone.currentAmount || 0) / activeMilestone.amount) * 100).toFixed(0)
+                          : 0
+                        }%
+                      </span>
+                    </div>
+                    <div className="h-2 bg-white rounded-full overflow-hidden border border-gray-200">
+                      <div 
+                        className={`h-full transition-all ${
+                          (activeMilestone.currentAmount || 0) >= activeMilestone.amount 
+                            ? 'bg-green-500' 
+                            : 'bg-blue-500'
+                        }`}
+                        style={{ 
+                          width: activeMilestone.amount > 0 
+                            ? `${Math.min(((activeMilestone.currentAmount || 0) / activeMilestone.amount) * 100, 100)}%`
+                            : '0%'
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between mt-2 text-xs">
+                    <span className={(activeMilestone.currentAmount || 0) >= activeMilestone.amount ? 'text-green-600' : 'text-blue-600'}>
+                      {(activeMilestone.currentAmount || 0) >= activeMilestone.amount 
+                        ? 'Waiting for next milestone' 
+                        : `Remaining: ${formatCurrency(Math.max(0, activeMilestone.amount - (activeMilestone.currentAmount || 0)))}`
+                      }
+                    </span>
+                    <span className={(activeMilestone.currentAmount || 0) >= activeMilestone.amount ? 'text-green-600' : 'text-blue-600'}>
+                      Deadline: {new Date(activeMilestone.deadline).toLocaleDateString()}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <div className={`mt-3 pt-3 border-t ${
+                activeMilestone.currentAmount >= activeMilestone.amount 
+                  ? 'border-green-200' 
+                  : 'border-blue-200'
+              }`}>
+                <p className={`text-xs ${
+                  activeMilestone.currentAmount >= activeMilestone.amount 
+                    ? 'text-green-600' 
+                    : 'text-blue-600'
+                }`}>
+                  {activeMilestone.currentAmount >= activeMilestone.amount 
+                    ? '🎉 This milestone is fully funded! Waiting for creator submission and backer approval.' 
+                    : '💡 Your contribution will be held in escrow until this milestone is completed and approved by backers through voting.'
+                  }
+                </p>
+              </div>
+            </div>
+          )}
+
+          {!loadingMilestone && !activeMilestone && campaign.requiresMilestones && (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+              <div className="flex items-start">
+                <AlertCircle className="h-5 w-5 text-amber-600 mr-3 mt-0.5 flex-shrink-0" />
+                <div className="flex-1">
+                  <h4 className="font-semibold text-amber-900 mb-1">
+                    No Active Milestone
+                  </h4>
+                  <p className="text-xs text-amber-700">
+                    This campaign requires milestones, but there is currently no active milestone accepting contributions. The previous milestone may be under review, or the creator needs to activate the next milestone.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {!loadingMilestone && !activeMilestone && !campaign.requiresMilestones && (
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+              <div className="flex items-start">
+                <Info className="h-5 w-5 text-gray-600 mr-3 mt-0.5 flex-shrink-0" />
+                <div className="flex-1">
+                  <h4 className="font-semibold text-gray-900 mb-1">
+                    Contributing to Campaign Goal
+                  </h4>
+                  <p className="text-xs text-gray-600">
+                    This campaign doesn't have milestones. Your contribution will support the overall campaign goal.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Wallet Status */}
           {!wallet.connected && (
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
@@ -641,13 +820,30 @@ const BackingModal = ({ isOpen, onClose, campaign, onContributionSuccess }: Back
             </Button>
             <Button 
               onClick={handleContribute}
-              disabled={!amount || parseFloat(amount) <= 0 || isSubmitting || !wallet.connected}
-              className="flex-1 bg-green-500 hover:bg-green-600"
+              disabled={
+                !amount || 
+                parseFloat(amount) <= 0 || 
+                isSubmitting || 
+                !wallet.connected ||
+                (campaign.requiresMilestones && !activeMilestone) ||
+                (activeMilestone && activeMilestone.currentAmount >= activeMilestone.amount)
+              }
+              className="flex-1 bg-green-500 hover:bg-green-600 disabled:bg-gray-400 disabled:cursor-not-allowed"
             >
               {isSubmitting ? (
                 <>
                   <Wallet className="h-4 w-4 mr-2 animate-spin" />
                   Processing...
+                </>
+              ) : (campaign.requiresMilestones && !activeMilestone) ? (
+                <>
+                  <AlertCircle className="h-4 w-4 mr-2" />
+                  No Active Milestone
+                </>
+              ) : (activeMilestone && activeMilestone.currentAmount >= activeMilestone.amount) ? (
+                <>
+                  <AlertCircle className="h-4 w-4 mr-2" />
+                  Milestone Fully Funded
                 </>
               ) : (
                 <>

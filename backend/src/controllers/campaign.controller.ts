@@ -395,5 +395,27 @@ export const campaignController = {
       console.error('Error getting campaign stats:', error);
       return res.status(500).json({ error: 'Failed to retrieve campaign statistics' });
     }
+  },
+
+  /**
+   * Get active milestone for a campaign
+   * @route GET /api/campaigns/:id/active-milestone
+   */
+  getActiveMilestone: async (req: Request, res: Response) => {
+    try {
+      const { id: campaignId } = req.params;
+
+      const { MilestoneService } = await import('../services/milestoneService');
+      const activeMilestone = await MilestoneService.getActiveMilestone(campaignId);
+
+      if (!activeMilestone) {
+        return res.status(404).json({ error: 'No active milestone found for this campaign' });
+      }
+
+      return res.status(200).json(activeMilestone);
+    } catch (error) {
+      console.error('Error getting active milestone:', error);
+      return res.status(500).json({ error: 'Failed to retrieve active milestone' });
+    }
   }
 }; 

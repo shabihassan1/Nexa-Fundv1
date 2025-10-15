@@ -146,6 +146,10 @@ async function startServer() {
     await prisma.$connect();
     console.log('🐘 Database connected successfully');
 
+    // Start milestone release cron job
+    const { startMilestoneReleaseJob } = await import('./jobs/milestoneReleaseJob');
+    startMilestoneReleaseJob();
+
     // Start server
     const server = app.listen(config.port, () => {
       console.log(`
@@ -156,6 +160,7 @@ async function startServer() {
 💾 Database: Connected
 🛡️ Security: Enabled (Helmet)
 ⚡ Rate Limiting: ${config.rateLimitMax} requests per ${config.rateLimitWindowMs}ms
+🕒 Milestone Auto-Release: Active (checks hourly)
       `);
     });
 

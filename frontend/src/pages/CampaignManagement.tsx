@@ -192,14 +192,18 @@ const CampaignManagement = () => {
     switch (status) {
       case 'ACTIVE':
         return <Badge className="bg-green-100 text-green-800">Active</Badge>;
+      case 'APPROVED':
+        return <Badge className="bg-blue-100 text-blue-800">Approved</Badge>;
       case 'PENDING':
         return <Badge className="bg-yellow-100 text-yellow-800">Pending</Badge>;
+      case 'PAUSED':
+        return <Badge className="bg-gray-100 text-gray-800">Paused</Badge>;
       case 'COMPLETED':
-        return <Badge className="bg-blue-100 text-blue-800">Completed</Badge>;
+        return <Badge className="bg-purple-100 text-purple-800">Completed</Badge>;
       case 'CANCELLED':
         return <Badge className="bg-red-100 text-red-800">Cancelled</Badge>;
-      case 'SUSPENDED':
-        return <Badge className="bg-gray-100 text-gray-800">Suspended</Badge>;
+      case 'FLAGGED':
+        return <Badge className="bg-orange-100 text-orange-800">Flagged</Badge>;
       default:
         return <Badge className="bg-gray-100 text-gray-800">{status}</Badge>;
     }
@@ -350,10 +354,12 @@ const CampaignManagement = () => {
                 <SelectContent>
                   <SelectItem value="all">All Statuses</SelectItem>
                   <SelectItem value="PENDING">Pending</SelectItem>
+                  <SelectItem value="APPROVED">Approved</SelectItem>
                   <SelectItem value="ACTIVE">Active</SelectItem>
+                  <SelectItem value="PAUSED">Paused</SelectItem>
                   <SelectItem value="COMPLETED">Completed</SelectItem>
                   <SelectItem value="CANCELLED">Cancelled</SelectItem>
-                  <SelectItem value="SUSPENDED">Suspended</SelectItem>
+                  <SelectItem value="FLAGGED">Flagged</SelectItem>
                 </SelectContent>
               </Select>
 

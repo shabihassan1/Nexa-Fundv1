@@ -29,6 +29,13 @@ router.get('/stats', authMiddleware, campaignController.getCampaignStats);
 router.get('/:id', campaignController.getCampaignById);
 
 /**
+ * @route   GET /api/campaigns/:id/active-milestone
+ * @desc    Get the currently active milestone for a campaign
+ * @access  Public
+ */
+router.get('/:id/active-milestone', campaignController.getActiveMilestone);
+
+/**
  * @route   GET /api/campaigns/:id/contributions
  * @desc    Get all contributions for a campaign
  * @access  Public

@@ -188,10 +188,12 @@ const AdminEditCampaign = () => {
 
   const statusOptions = [
     { value: "PENDING", label: "Pending", color: "bg-yellow-100 text-yellow-800" },
+    { value: "APPROVED", label: "Approved", color: "bg-blue-100 text-blue-800" },
     { value: "ACTIVE", label: "Active", color: "bg-green-100 text-green-800" },
-    { value: "COMPLETED", label: "Completed", color: "bg-blue-100 text-blue-800" },
+    { value: "PAUSED", label: "Paused", color: "bg-gray-100 text-gray-800" },
+    { value: "COMPLETED", label: "Completed", color: "bg-purple-100 text-purple-800" },
     { value: "CANCELLED", label: "Cancelled", color: "bg-red-100 text-red-800" },
-    { value: "SUSPENDED", label: "Suspended", color: "bg-gray-100 text-gray-800" }
+    { value: "FLAGGED", label: "Flagged", color: "bg-orange-100 text-orange-800" }
   ];
 
   return (
