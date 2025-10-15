@@ -84,14 +84,12 @@ export const contributionController = {
         return;
       }
       
-      // Check if campaign exists and get active milestone
+      // Check if campaign exists and get milestones
       const campaign = await prisma.campaign.findUnique({
         where: { id: campaignId },
         include: {
           milestones: {
-            where: { status: 'ACTIVE' },
-            orderBy: { order: 'asc' },
-            take: 1
+            orderBy: { order: 'asc' }
           }
         }
       });
@@ -107,10 +105,20 @@ export const contributionController = {
         return;
       }
 
-      // Check if campaign requires milestones
+      // IMPORTANT: All campaigns must have at least one milestone before accepting contributions
+      // This ensures proper fund management and milestone-based releases
+      if (campaign.milestones.length === 0) {
+        res.status(400).json({ 
+          error: 'No milestones created',
+          message: 'This campaign has not set up milestones yet. Milestones are required to accept contributions. Please contact the creator.' 
+        });
+        return;
+      }
+
+      // Check if campaign requires milestone-based funding
       if (campaign.requiresMilestones) {
         // Check if there's an active milestone
-        const activeMilestone = campaign.milestones[0];
+        const activeMilestone = campaign.milestones.find(m => m.status === 'ACTIVE');
         
         if (!activeMilestone) {
           res.status(400).json({ 
@@ -205,15 +213,18 @@ export const contributionController = {
         }
       });
 
-      // Update active milestone's current amount if campaign requires milestones
-      if (campaign.requiresMilestones && campaign.milestones[0]) {
-        const activeMilestone = campaign.milestones[0];
-        const newCurrentAmount = activeMilestone.currentAmount + parseFloat(amount);
-        const targetAmount = parseFloat(activeMilestone.amount.toString());
+      // Update milestone's current amount
+      // The getActiveMilestone already returned the correct available milestone
+      const { MilestoneService } = await import('../services/milestoneService');
+      const availableMilestone = await MilestoneService.getActiveMilestone(campaignId);
+      
+      if (availableMilestone) {
+        const newCurrentAmount = parseFloat(availableMilestone.currentAmount.toString()) + parseFloat(amount);
+        const targetAmount = parseFloat(availableMilestone.amount.toString());
         
-        // Update the milestone's current amount
+        // Update the milestone's current amount (atomic operation)
         await prisma.milestone.update({
-          where: { id: activeMilestone.id },
+          where: { id: availableMilestone.id },
           data: {
             currentAmount: {
               increment: parseFloat(amount)
@@ -221,14 +232,10 @@ export const contributionController = {
           }
         });
 
-        // If milestone is now fully funded, change status from ACTIVE to PENDING
-        // This allows the creator to submit proof and start the voting process
-        if (newCurrentAmount >= targetAmount && activeMilestone.status === 'ACTIVE') {
-          await prisma.milestone.update({
-            where: { id: activeMilestone.id },
-            data: { status: 'PENDING' }
-          });
-          console.log(`✅ Milestone ${activeMilestone.order} fully funded - changed to PENDING status`);
+        // Log if milestone just became fully funded
+        if (newCurrentAmount >= targetAmount) {
+          console.log(`✅ Milestone ${availableMilestone.order} is now fully funded ($${newCurrentAmount}/$${targetAmount})`);
+          console.log(`   Next step: Creator should submit proof of completion`);
         }
       }
       

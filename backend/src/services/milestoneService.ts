@@ -520,7 +520,16 @@ export class MilestoneService {
   // ==================== NEW: MILESTONE VOTING & RELEASE SYSTEM ====================
 
   /**
-   * Get active milestone for a campaign (the one currently accepting contributions)
+   * Get available milestone for contributions (intelligent availability logic)
+   * 
+   * A milestone is available for contributions when:
+   * 1. First milestone (order = 1) → Always available if not fully funded
+   * 2. Subsequent milestones → Available if previous milestone is APPROVED and current not fully funded
+   * 
+   * This ensures:
+   * - First milestone starts accepting contributions immediately at $0
+   * - Next milestone only unlocks after previous is fully funded AND approved
+   * - No contributions accepted if milestone is fully funded (waiting for proof/voting)
    */
   static async getActiveMilestone(campaignId: string) {
     try {
@@ -528,9 +537,7 @@ export class MilestoneService {
         where: { id: campaignId },
         include: {
           milestones: {
-            where: { status: MilestoneStatus.ACTIVE },
-            orderBy: { order: 'asc' },
-            take: 1
+            orderBy: { order: 'asc' }
           }
         }
       });
@@ -539,7 +546,55 @@ export class MilestoneService {
         throw new Error('Campaign not found');
       }
 
-      return campaign.milestones[0] || null;
+      if (campaign.milestones.length === 0) {
+        return null;
+      }
+
+      // Find the milestone that is currently available for contributions
+      for (const milestone of campaign.milestones) {
+        const currentAmount = parseFloat(milestone.currentAmount.toString());
+        const targetAmount = parseFloat(milestone.amount.toString());
+        
+        // Check if this milestone is fully funded
+        const isFullyFunded = currentAmount >= targetAmount;
+        
+        // First milestone: Available if not fully funded
+        if (milestone.order === 1) {
+          if (!isFullyFunded) {
+            return milestone;
+          }
+          // If first milestone is fully funded, continue to check next
+          continue;
+        }
+        
+        // For subsequent milestones: Check if previous milestone is approved
+        const previousMilestone = campaign.milestones.find(m => m.order === milestone.order - 1);
+        
+        if (!previousMilestone) {
+          continue; // Should not happen, but safety check
+        }
+        
+        const prevCurrentAmount = parseFloat(previousMilestone.currentAmount.toString());
+        const prevTargetAmount = parseFloat(previousMilestone.amount.toString());
+        const isPreviousFullyFunded = prevCurrentAmount >= prevTargetAmount;
+        const isPreviousApproved = previousMilestone.status === MilestoneStatus.APPROVED;
+        
+        // This milestone is available if:
+        // - Previous milestone is fully funded AND approved
+        // - Current milestone is not fully funded yet
+        if (isPreviousFullyFunded && isPreviousApproved && !isFullyFunded) {
+          return milestone;
+        }
+        
+        // If we found a milestone that's not ready yet, stop checking
+        // (milestones must be completed sequentially)
+        if (!isPreviousApproved || !isFullyFunded) {
+          break;
+        }
+      }
+
+      // No milestone is currently available for contributions
+      return null;
     } catch (error: any) {
       safeLog('Error getting active milestone', { error: error?.message });
       throw error;

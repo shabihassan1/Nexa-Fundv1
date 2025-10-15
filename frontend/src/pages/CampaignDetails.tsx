@@ -70,6 +70,53 @@ const CampaignDetails = () => {
     voteOnMilestone: voteOnMilestoneMutation,
     isLoading: milestonesLoading
   } = useMilestoneOperations(id);
+
+  // Intelligent milestone availability logic
+  // A milestone is available for contributions when:
+  // 1. First milestone (order = 1) → Always available if not fully funded
+  // 2. Subsequent milestones → Available if previous milestone is APPROVED and current not fully funded
+  const getAvailableMilestone = () => {
+    if (!milestones || milestones.length === 0) return null;
+
+    for (const milestone of milestones) {
+      const currentAmount = milestone.currentAmount || 0;
+      const targetAmount = milestone.amount || 0;
+      const isFullyFunded = currentAmount >= targetAmount;
+
+      // First milestone: Available if not fully funded
+      if (milestone.order === 1) {
+        if (!isFullyFunded) {
+          return milestone;
+        }
+        continue; // If fully funded, check next
+      }
+
+      // For subsequent milestones: Check if previous milestone is approved
+      const previousMilestone = milestones.find(m => m.order === milestone.order - 1);
+      
+      if (!previousMilestone) continue;
+
+      const prevCurrentAmount = previousMilestone.currentAmount || 0;
+      const prevTargetAmount = previousMilestone.amount || 0;
+      const isPreviousFullyFunded = prevCurrentAmount >= prevTargetAmount;
+      const isPreviousApproved = previousMilestone.status === 'APPROVED';
+
+      // This milestone is available if previous is approved and current not full
+      if (isPreviousFullyFunded && isPreviousApproved && !isFullyFunded) {
+        return milestone;
+      }
+
+      // Stop checking if we hit a milestone that's not ready
+      if (!isPreviousApproved || !isFullyFunded) {
+        break;
+      }
+    }
+
+    return null;
+  };
+
+  const availableMilestone = getAvailableMilestone();
+  const hasActiveMilestone = availableMilestone !== null;
   
   useEffect(() => {
     // Check if user came from admin panel or browse
@@ -834,24 +881,26 @@ const CampaignDetails = () => {
                     <Button 
                       onClick={handleBackProject}
                       className={`w-full py-3 text-lg font-medium ${
-                        campaign.status === 'ACTIVE' && !isCreator
+                        campaign.status === 'ACTIVE' && !isCreator && hasActiveMilestone
                           ? 'bg-green-500 hover:bg-green-600 text-white'
                           : 'bg-gray-400 text-gray-600 cursor-not-allowed'
                       }`}
-                      disabled={isCreator || campaign.status !== 'ACTIVE'}
+                      disabled={isCreator || campaign.status !== 'ACTIVE' || !hasActiveMilestone}
                     >
                       <Heart className="h-5 w-5 mr-2" />
                       {isCreator 
                         ? "Your Campaign" 
-                        : campaign.status === 'ACTIVE' 
-                          ? "Back this project"
-                          : campaign.status === 'PENDING'
-                            ? "Pending Approval"
-                            : campaign.status === 'COMPLETED'
-                              ? "Campaign Completed"
-                              : campaign.status === 'CANCELLED'
-                                ? "Campaign Cancelled"
-                                : "Not Available"
+                        : !hasActiveMilestone
+                          ? "No Active Milestone"
+                          : campaign.status === 'ACTIVE' 
+                            ? "Back this project"
+                            : campaign.status === 'PENDING'
+                              ? "Pending Approval"
+                              : campaign.status === 'COMPLETED'
+                                ? "Campaign Completed"
+                                : campaign.status === 'CANCELLED'
+                                  ? "Campaign Cancelled"
+                                  : "Not Available"
                       }
                     </Button>
                     
@@ -860,6 +909,17 @@ const CampaignDetails = () => {
                       <p className="text-xs text-gray-500 text-center">
                         Campaign creators cannot back their own projects
                       </p>
+                    )}
+
+                    {!isCreator && !hasActiveMilestone && campaign.status === 'ACTIVE' && (
+                      <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                        <p className="text-xs text-red-700 text-center font-medium">
+                          ⚠️ This campaign has no active milestone available for contributions
+                        </p>
+                        <p className="text-xs text-red-600 text-center mt-1">
+                          Please check back later or contact the campaign creator
+                        </p>
+                      </div>
                     )}
                     
                     {!isCreator && campaign.status === 'PENDING' && (

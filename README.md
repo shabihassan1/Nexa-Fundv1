@@ -82,12 +82,19 @@ cd "RS(Nexa Fund)/RecomendationSystem(NF)"
 - **Content Moderation:** Report handling and fraud prevention
 - **File Management:** Image uploads with secure serving
 
+### 🎯 Intelligent Milestone System (NEW)
+- **Zero-Config Availability:** First milestone instantly accepts contributions at $0
+- **Sequential Progression:** Next milestone unlocks automatically when previous APPROVED
+- **Auto-Protection:** Over-funding prevented, contributions blocked when goal reached
+- **Dynamic Status:** UI reflects real-time availability (green "Active" badge)
+- **Proof-Based Flow:** Creator submits proof → Voting → Approval → Next milestone unlocks
+
 ### Smart Contracts (Deployed & Integrated)
 - **Escrow System:** Contributions held in contract, not direct transfer
 - **Milestone-Based Release:** Funds released after milestone approval
 - **Weighted Voting:** Vote power based on contribution amount (60% approval, 10% quorum)
 - **Network:** Tenderly VTN (Chain ID: 73571, POL currency)
-- **Contract Address:** `0xaB37c74fD8598CF891990Ad69E84D94014AE8Aa9`
+- **Contract Address:** `0x2428fB67608E04Dc3171f05e212211BBB633f589`
 
 ---
 

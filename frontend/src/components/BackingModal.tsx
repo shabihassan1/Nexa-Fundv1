@@ -150,8 +150,20 @@ const BackingModal = ({ isOpen, onClose, campaign, onContributionSuccess }: Back
       return;
     }
 
-    // Validate milestone funding limits
-    if (activeMilestone) {
+    // ALL campaigns must have milestones before accepting contributions
+    if (!activeMilestone) {
+      toast({
+        title: "No Milestones Available",
+        description: "This campaign has not set up milestones yet. Milestones are required to accept contributions.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate milestone funding limits for milestone-based campaigns
+    if (campaign.requiresMilestones) {
+
+      // Validate milestone funding limits
       if (activeMilestone.currentAmount >= activeMilestone.amount) {
         toast({
           title: "Milestone Fully Funded",
@@ -380,6 +392,26 @@ const BackingModal = ({ isOpen, onClose, campaign, onContributionSuccess }: Back
         </DialogHeader>
         
         <div className="space-y-6">
+          {/* No Milestones Warning - ALL campaigns need milestones */}
+          {!loadingMilestone && !activeMilestone && (
+            <div className="border border-red-300 rounded-lg p-4 bg-red-50">
+              <div className="flex items-start">
+                <AlertCircle className="h-5 w-5 mr-3 mt-0.5 flex-shrink-0 text-red-600" />
+                <div className="flex-1">
+                  <h4 className="font-semibold text-red-900 mb-1">
+                    ❌ No Milestones Available
+                  </h4>
+                  <p className="text-sm text-red-800 mb-2">
+                    This campaign has not set up milestones yet. All campaigns require milestones before accepting contributions to ensure proper fund management.
+                  </p>
+                  <p className="text-xs text-red-700">
+                    Please contact the campaign creator to set up milestones, or check back later.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Active Milestone Info */}
           {!loadingMilestone && activeMilestone && (
             <div className={`border rounded-lg p-4 ${
@@ -825,7 +857,7 @@ const BackingModal = ({ isOpen, onClose, campaign, onContributionSuccess }: Back
                 parseFloat(amount) <= 0 || 
                 isSubmitting || 
                 !wallet.connected ||
-                (campaign.requiresMilestones && !activeMilestone) ||
+                !activeMilestone || // ALL campaigns need an active milestone
                 (activeMilestone && activeMilestone.currentAmount >= activeMilestone.amount)
               }
               className="flex-1 bg-green-500 hover:bg-green-600 disabled:bg-gray-400 disabled:cursor-not-allowed"
@@ -835,7 +867,7 @@ const BackingModal = ({ isOpen, onClose, campaign, onContributionSuccess }: Back
                   <Wallet className="h-4 w-4 mr-2 animate-spin" />
                   Processing...
                 </>
-              ) : (campaign.requiresMilestones && !activeMilestone) ? (
+              ) : !activeMilestone ? (
                 <>
                   <AlertCircle className="h-4 w-4 mr-2" />
                   No Active Milestone

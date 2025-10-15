@@ -15,7 +15,8 @@ import {
   AlertTriangle,
   Edit,
   Upload,
-  Eye
+  Eye,
+  Target
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { VotingStats } from './VotingStats';
@@ -101,8 +102,42 @@ const MilestoneCard: React.FC<MilestoneCardProps> = ({
   const totalVotes = milestone.votesFor + milestone.votesAgainst;
   const approvalRate = totalVotes > 0 ? (milestone.votesFor / totalVotes) * 100 : 0;
   
+  // Determine display status based on intelligent availability logic
+  // Show "ACTIVE" for milestones that are accepting contributions
+  const getDisplayStatus = () => {
+    const currentAmount = milestone.currentAmount || 0;
+    const targetAmount = milestone.amount || 0;
+    const isFullyFunded = currentAmount >= targetAmount;
+
+    // If already in a final state, keep showing that
+    if (['SUBMITTED', 'VOTING', 'APPROVED', 'REJECTED'].includes(milestone.status)) {
+      return milestone.status;
+    }
+
+    // For PENDING status, check if it's actually available for contributions
+    if (milestone.status === 'PENDING') {
+      // First milestone that's not fully funded should show as ACTIVE
+      if (milestone.order === 1 && !isFullyFunded) {
+        return 'ACTIVE';
+      }
+      
+      // If fully funded but not submitted yet, show as PENDING (awaiting proof)
+      if (isFullyFunded) {
+        return 'PENDING';
+      }
+      
+      // For other milestones, keep PENDING (they're waiting for previous approval)
+      return 'PENDING';
+    }
+
+    return milestone.status;
+  };
+
+  const displayStatus = getDisplayStatus();
+  
   const getStatusColor = (status: string) => {
     switch (status) {
+      case 'ACTIVE': return 'bg-green-100 text-green-800 border-green-200';
       case 'PENDING': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
       case 'SUBMITTED': return 'bg-blue-100 text-blue-800 border-blue-200';
       case 'VOTING': return 'bg-purple-100 text-purple-800 border-purple-200';
@@ -114,6 +149,7 @@ const MilestoneCard: React.FC<MilestoneCardProps> = ({
 
   const getStatusIcon = (status: string) => {
     switch (status) {
+      case 'ACTIVE': return <Target className="h-4 w-4" />;
       case 'PENDING': return <Clock className="h-4 w-4" />;
       case 'SUBMITTED': return <Upload className="h-4 w-4" />;
       case 'VOTING': return <Users className="h-4 w-4" />;
@@ -123,12 +159,13 @@ const MilestoneCard: React.FC<MilestoneCardProps> = ({
     }
   };
 
-  const isOverdue = new Date(milestone.deadline) < new Date() && milestone.status === 'PENDING';
+  const isOverdue = new Date(milestone.deadline) < new Date() && displayStatus === 'PENDING';
   const votingEnded = milestone.votingDeadline && new Date(milestone.votingDeadline) < new Date();
 
-  const borderColor = milestone.status === 'APPROVED' ? 'border-l-green-500' : 
-                     milestone.status === 'REJECTED' ? 'border-l-red-500' :
-                     milestone.status === 'VOTING' ? 'border-l-purple-500' :
+  const borderColor = displayStatus === 'APPROVED' ? 'border-l-green-500' : 
+                     displayStatus === 'REJECTED' ? 'border-l-red-500' :
+                     displayStatus === 'VOTING' ? 'border-l-purple-500' :
+                     displayStatus === 'ACTIVE' ? 'border-l-green-500' :
                      'border-l-blue-500';
 
   return (
@@ -136,8 +173,8 @@ const MilestoneCard: React.FC<MilestoneCardProps> = ({
       <CardHeader className="pb-4">
         <div className="flex items-start justify-between">
           <div className="flex items-start space-x-4">
-            <div className={`p-2 rounded-full ${milestone.status === 'APPROVED' ? 'bg-green-100' : 'bg-gray-100'}`}>
-              {getStatusIcon(milestone.status)}
+            <div className={`p-2 rounded-full ${displayStatus === 'APPROVED' || displayStatus === 'ACTIVE' ? 'bg-green-100' : 'bg-gray-100'}`}>
+              {getStatusIcon(displayStatus)}
             </div>
             <div className="flex-1">
               <div className="flex items-center space-x-2 mb-1">
@@ -146,10 +183,12 @@ const MilestoneCard: React.FC<MilestoneCardProps> = ({
                 </CardTitle>
                 <Badge 
                   variant="outline" 
-                  className={getStatusColor(milestone.status)}
+                  className={getStatusColor(displayStatus)}
                 >
-                  {getStatusIcon(milestone.status)}
-                  <span className="ml-1 capitalize">{milestone.status.toLowerCase()}</span>
+                  {getStatusIcon(displayStatus)}
+                  <span className="ml-1 capitalize">
+                    {displayStatus === 'ACTIVE' ? 'Active - Accepting Contributions' : displayStatus.toLowerCase()}
+                  </span>
                 </Badge>
               </div>
               
