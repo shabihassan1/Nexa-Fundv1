@@ -150,6 +150,7 @@ model Milestone {
   order       Int      // Order of milestone (1, 2, 3, etc.)
   status      MilestoneStatus @default(PENDING)
   deadline    DateTime
+  proofRequirements String? // What proof creator will provide for completion
   submittedAt DateTime?
   approvedAt  DateTime?
   rejectedAt  DateTime?

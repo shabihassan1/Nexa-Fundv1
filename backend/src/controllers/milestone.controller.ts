@@ -32,7 +32,8 @@ const createMilestonesSchema = z.object({
     description: z.string().min(1, 'Description is required'),
     amount: z.number().positive('Amount must be positive'),
     deadline: z.string().transform((str: string) => new Date(str)),
-    order: z.number().positive('Order must be positive')
+    order: z.number().positive('Order must be positive'),
+    proofRequirements: z.string().optional()
   })).min(1, 'At least one milestone is required')
 });
 

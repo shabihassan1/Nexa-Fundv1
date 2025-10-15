@@ -13,6 +13,7 @@ export interface CreateMilestoneData {
   amount: number;
   deadline: Date;
   order: number;
+  proofRequirements?: string;
 }
 
 export interface SubmitMilestoneData {
@@ -39,9 +40,30 @@ export class MilestoneService {
         throw new Error('Campaign not found');
       }
 
+      // VALIDATION RULE 1: Minimum 3 milestones required
+      if (milestonesData.length < 3) {
+        throw new Error('Minimum 3 milestones are required');
+      }
+
+      // VALIDATION RULE 2: First milestone cannot exceed 25% of target
+      if (milestonesData[0] && milestonesData[0].amount > (campaign.targetAmount * 0.25)) {
+        throw new Error('First milestone cannot exceed 25% of project goal');
+      }
+
+      // VALIDATION RULE 3: Second milestone cannot exceed 50% of target
+      if (milestonesData[1] && milestonesData[1].amount > (campaign.targetAmount * 0.50)) {
+        throw new Error('Second milestone cannot exceed 50% of project goal');
+      }
+
+      // VALIDATION RULE 4: Total milestone amounts must equal target amount
       const totalMilestoneAmount = milestonesData.reduce((sum, m) => sum + m.amount, 0);
-      if (totalMilestoneAmount > campaign.targetAmount) {
-        throw new Error('Total milestone amounts cannot exceed campaign target amount');
+      const difference = Math.abs(totalMilestoneAmount - campaign.targetAmount);
+      if (difference > 0.01) { // Allow 1 cent tolerance for rounding
+        if (totalMilestoneAmount > campaign.targetAmount) {
+          throw new Error('Total milestone amounts cannot exceed campaign target amount');
+        } else {
+          throw new Error('Total milestone amounts must equal campaign target amount');
+        }
       }
 
       // Create milestones in a transaction

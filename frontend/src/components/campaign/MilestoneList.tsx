@@ -23,6 +23,7 @@ interface MilestoneListProps {
     order: number;
     status: string;
     deadline: string;
+    proofRequirements?: string;
     submittedAt?: string;
     approvedAt?: string;
     rejectedAt?: string;

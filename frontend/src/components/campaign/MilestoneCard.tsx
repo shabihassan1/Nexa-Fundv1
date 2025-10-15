@@ -28,6 +28,7 @@ interface MilestoneCardProps {
     order: number;
     status: string;
     deadline: string;
+    proofRequirements?: string;
     submittedAt?: string;
     approvedAt?: string;
     rejectedAt?: string;
@@ -192,6 +193,17 @@ const MilestoneCard: React.FC<MilestoneCardProps> = ({
       <CardContent className="space-y-4">
         {/* Description */}
         <p className="text-gray-700 leading-relaxed">{milestone.description}</p>
+
+        {/* Proof Requirements */}
+        {milestone.proofRequirements && (
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+            <h4 className="font-medium text-gray-900 text-sm mb-1 flex items-center">
+              <CheckCircle className="h-4 w-4 mr-1.5 text-gray-600" />
+              Proof of Completion
+            </h4>
+            <p className="text-gray-700 text-sm">{milestone.proofRequirements}</p>
+          </div>
+        )}
 
         {/* Evidence Section */}
         {milestone.evidence && (

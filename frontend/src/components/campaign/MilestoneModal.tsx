@@ -30,6 +30,7 @@ interface Milestone {
   amount: number;
   deadline: string;
   order: number;
+  proofRequirements?: string;
 }
 
 interface MilestoneModalProps {
@@ -97,7 +98,8 @@ const MilestoneModal: React.FC<MilestoneModalProps> = ({
             description: '',
             amount: 0,
             deadline: '',
-            order: 1
+            order: 1,
+            proofRequirements: ''
           }
         ]);
       }
@@ -111,7 +113,8 @@ const MilestoneModal: React.FC<MilestoneModalProps> = ({
       description: '',
       amount: 0,
       deadline: '',
-      order: milestones.length + 1
+      order: milestones.length + 1,
+      proofRequirements: ''
     };
     setMilestones([...milestones, newMilestone]);
   };
@@ -141,9 +144,9 @@ const MilestoneModal: React.FC<MilestoneModalProps> = ({
     const newErrors: { [key: string]: string } = {};
     let isValid = true;
 
-    // Check if at least one milestone exists
-    if (milestones.length === 0) {
-      newErrors.general = 'At least one milestone is required';
+    // RULE 1: Minimum 3 milestones required
+    if (milestones.length < 3) {
+      newErrors.general = 'Minimum 3 milestones are required';
       isValid = false;
     }
 
@@ -172,6 +175,18 @@ const MilestoneModal: React.FC<MilestoneModalProps> = ({
         isValid = false;
       }
 
+      // RULE 2: First milestone cannot exceed 25% of total project
+      if (index === 0 && milestone.amount > (campaignTargetAmount * 0.25)) {
+        newErrors[`${index}.amount`] = `First milestone cannot exceed 25% of project goal (${formatCurrency(campaignTargetAmount * 0.25)})`;
+        isValid = false;
+      }
+
+      // RULE 3: Second milestone cannot exceed 50% of total project
+      if (index === 1 && milestone.amount > (campaignTargetAmount * 0.50)) {
+        newErrors[`${index}.amount`] = `Second milestone cannot exceed 50% of project goal (${formatCurrency(campaignTargetAmount * 0.50)})`;
+        isValid = false;
+      }
+
       // Deadline validation
       if (!milestone.deadline) {
         newErrors[`${index}.deadline`] = 'Deadline is required';
@@ -188,10 +203,14 @@ const MilestoneModal: React.FC<MilestoneModalProps> = ({
       }
     });
 
-    // Check total amount doesn't exceed campaign target
+    // RULE 4: Total milestone amount must equal campaign target
     const totalAmount = milestones.reduce((sum, m) => sum + (m.amount || 0), 0);
-    if (campaignTargetAmount > 0 && totalAmount > campaignTargetAmount) {
-      newErrors.totalAmount = `Total milestone amount (${formatCurrency(totalAmount)}) cannot exceed campaign target (${formatCurrency(campaignTargetAmount)})`;
+    if (campaignTargetAmount > 0 && Math.abs(totalAmount - campaignTargetAmount) > 0.01) {
+      if (totalAmount < campaignTargetAmount) {
+        newErrors.totalAmount = `Total milestone amount (${formatCurrency(totalAmount)}) must equal campaign target (${formatCurrency(campaignTargetAmount)}). Add ${formatCurrency(campaignTargetAmount - totalAmount)} more.`;
+      } else {
+        newErrors.totalAmount = `Total milestone amount (${formatCurrency(totalAmount)}) exceeds campaign target (${formatCurrency(campaignTargetAmount)}). Reduce by ${formatCurrency(totalAmount - campaignTargetAmount)}.`;
+      }
       isValid = false;
     }
 
@@ -239,13 +258,51 @@ const MilestoneModal: React.FC<MilestoneModalProps> = ({
         </DialogHeader>
 
         <div className="space-y-6">
+          {/* Warning for Create Mode - Milestones can only be created once */}
+          {mode === 'create' && (
+            <Card className="bg-red-50 border-red-300">
+              <CardContent className="p-4">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
+                  <div className="flex-1">
+                    <h4 className="font-semibold text-red-900 mb-1">⚠️ Important Warning:</h4>
+                    <p className="text-sm text-red-800">
+                      <strong>Milestones can only be created ONCE and cannot be edited later.</strong> Please review all details carefully before submitting. Make sure amounts, deadlines, and proof requirements are accurate.
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Validation Rules Info Box */}
+          <Card className="bg-blue-50 border-blue-200">
+            <CardContent className="p-4">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                <div className="flex-1">
+                  <h4 className="font-semibold text-blue-900 mb-2">Milestone Requirements:</h4>
+                  <ul className="text-sm text-blue-800 space-y-1">
+                    <li>• Minimum <strong>3 milestones</strong> required</li>
+                    <li>• Milestone 1: Maximum <strong>25%</strong> of total project goal ({formatCurrency(campaignTargetAmount * 0.25)})</li>
+                    <li>• Milestone 2: Maximum <strong>50%</strong> of total project goal ({formatCurrency(campaignTargetAmount * 0.50)})</li>
+                    <li>• Milestone 3+: Your choice (no limit)</li>
+                    <li>• <strong>Total must equal project goal:</strong> {formatCurrency(campaignTargetAmount)}</li>
+                  </ul>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Summary Card */}
           <Card>
             <CardContent className="p-4">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
                 <div>
                   <p className="text-sm text-gray-600">Milestones</p>
-                  <p className="text-xl font-bold">{milestones.length}</p>
+                  <p className={`text-xl font-bold ${milestones.length < 3 ? 'text-red-600' : 'text-green-600'}`}>
+                    {milestones.length} {milestones.length < 3 ? '(Min: 3)' : ''}
+                  </p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-600">Total Amount</p>
@@ -253,13 +310,37 @@ const MilestoneModal: React.FC<MilestoneModalProps> = ({
                 </div>
                 {campaignTargetAmount > 0 && (
                   <div>
-                    <p className="text-sm text-gray-600">Remaining</p>
-                    <p className={`text-xl font-bold ${remainingAmount < 0 ? 'text-red-600' : 'text-green-600'}`}>
-                      {formatCurrency(remainingAmount)}
+                    <p className="text-sm text-gray-600">
+                      {Math.abs(remainingAmount) < 0.01 ? 'Status' : 'Remaining'}
+                    </p>
+                    <p className={`text-xl font-bold ${
+                      Math.abs(remainingAmount) < 0.01 
+                        ? 'text-green-600' 
+                        : remainingAmount < 0 
+                          ? 'text-red-600' 
+                          : 'text-orange-600'
+                    }`}>
+                      {Math.abs(remainingAmount) < 0.01 ? (
+                        <span className="flex items-center justify-center gap-1">
+                          <CheckCircle className="h-5 w-5" />
+                          Complete
+                        </span>
+                      ) : (
+                        formatCurrency(remainingAmount)
+                      )}
                     </p>
                   </div>
                 )}
               </div>
+              
+              {errors.general && (
+                <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-md">
+                  <p className="text-sm text-red-600 flex items-center">
+                    <AlertTriangle className="h-4 w-4 mr-2" />
+                    {errors.general}
+                  </p>
+                </div>
+              )}
               
               {errors.totalAmount && (
                 <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
@@ -380,7 +461,7 @@ const MilestoneModal: React.FC<MilestoneModalProps> = ({
                       </div>
                     </div>
 
-                    <div>
+                    <div className="space-y-4">
                       {/* Description */}
                       <div>
                         <Label htmlFor={`description-${index}`}>Description *</Label>
@@ -392,7 +473,7 @@ const MilestoneModal: React.FC<MilestoneModalProps> = ({
                             updateMilestone(index, 'description', e.target.value);
                           }}
                           placeholder="Describe what will be accomplished in this milestone..."
-                          rows={6}
+                          rows={4}
                           className={errors[`${index}.description`] ? 'border-red-500' : ''}
                         />
                         {errors[`${index}.description`] && (
@@ -400,6 +481,25 @@ const MilestoneModal: React.FC<MilestoneModalProps> = ({
                         )}
                         <p className="text-xs text-gray-500 mt-1">
                           {(milestone.description || '').length}/500 characters
+                        </p>
+                      </div>
+
+                      {/* Proof of Completion */}
+                      <div>
+                        <Label htmlFor={`proof-${index}`}>Proof of Completion</Label>
+                        <Textarea
+                          id={`proof-${index}`}
+                          value={milestone.proofRequirements || ''}
+                          onChange={(e) => {
+                            console.log('Proof requirements onChange:', e.target.value);
+                            updateMilestone(index, 'proofRequirements', e.target.value);
+                          }}
+                          placeholder="What evidence will you provide? (e.g., photos, videos, receipts, progress reports)"
+                          rows={2}
+                          className="text-sm"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          Describe what proof you'll provide when completing this milestone
                         </p>
                       </div>
                     </div>

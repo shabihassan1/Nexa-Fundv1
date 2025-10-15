@@ -239,10 +239,47 @@
 
 ---
 
+## ✅ Phase 10: Milestone Validation Rules (Completed - Oct 15)
+
+### Strict Milestone Creation Requirements
+- **Rule 1**: Minimum 3 milestones required for all campaigns
+- **Rule 2**: First milestone ≤ 25% of project goal
+- **Rule 3**: Second milestone ≤ 50% of project goal
+- **Rule 4**: Milestone 3+ has no limit (creator's choice)
+- **Rule 5**: Total milestone amounts must exactly equal project goal
+
+### Implementation
+- **Frontend Validation**: Real-time validation in MilestoneModal with helpful info box
+- **Backend Validation**: Server-side validation in milestoneService.ts
+- **User Guidance**: Blue info box showing all requirements with calculated limits
+- **Visual Feedback**: 
+  - Red text when milestone count < 3
+  - Green "Complete" checkmark when total = goal
+  - Orange text when total ≠ goal
+
+**Files Modified:**
+- `frontend/src/components/campaign/MilestoneModal.tsx`
+- `backend/src/services/milestoneService.ts`
+
+### Milestone UX Improvements
+- **Proof of Completion Field**: Added optional field for creators to specify what evidence they'll provide
+- **One-Time Creation Warning**: Red warning box in create mode stating milestones cannot be edited after creation
+- **Better Layout**: Reorganized form with proof requirements below description
+- **Display on Milestone Cards**: Proof requirements now shown in gray box on each milestone card
+- **Database Migration**: Added `proofRequirements` field to Milestone model (migration: `20251015110635_add_proof_requirements_to_milestone`)
+
+**Files Modified:**
+- `backend/prisma/schema.prisma` - Added proofRequirements field
+- `frontend/src/components/campaign/MilestoneCard.tsx` - Display proof requirements
+- `frontend/src/components/campaign/MilestoneList.tsx` - Updated interface
+- `frontend/src/components/campaign/MilestoneModal.tsx` - Added input field
+
+---
+
 ## 🚧 Known Issues
 
 ### Minor
-- None currently
+- Existing campaigns may have invalid milestones (created before validation rules)
 
 ### Future Enhancements
 - Milestone voting UI for backers
