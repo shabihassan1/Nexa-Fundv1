@@ -1,11 +1,27 @@
 # Nexa Fund – Development Progress
 
 **Last Updated:** October 16, 2025  
-**Status:** Production-Ready with Local PostgreSQL ✅
+**Status:** Production-Ready with AI Explainability System ✅
 
 ---
 
-## 🎉 Latest: Local PostgreSQL Migration (Oct 16, 2025)
+## 🎉 Latest: AI Insights Badge System Complete (Oct 16, 2025)
+
+### ✅ AI Explainability Features
+**21. AI Insights Badge with Modal** - Complete explainable AI system
+- **Compact Badge:** Small purple "X% AI Match" badge on every AI-recommended campaign
+- **Click to Expand:** Opens detailed modal with full AI breakdown
+- **Universal Coverage:** Shows on ALL campaigns with AI scores (Top Match, Recommended, Others)
+- **Computed Metrics:**
+  - **Match Score:** Multi-dimensional percentage (40% Interest + 30% Collaborative + 20% Content + 10% Trending)
+  - **Success Probability:** 0-95% computed likelihood with 4 factors (Very High/High/Moderate/Building)
+  - **Community Strength:** Contextual backer analysis (Strong 🔥 50+, Growing 📈 20+, Building 🌱 5+, New ✨)
+  - **Urgency Detection:** Time-sensitive alerts (Final Hours ≤3 days, Ending Soon ≤7 days)
+  - **Explainable AI:** "Why Recommended?" with up to 6 transparent reasons
+- **Perfect UX:** Non-intrusive badge, optional engagement, overlay click isolation
+- **Value Demonstration:** Clear differentiation from manual filters (see docs/AI-Recommender-Value-Demonstration.md)
+
+---
 
 ### ✅ Database Migration Complete
 **20. Local PostgreSQL Setup** - Migrated from Neon Cloud to local PostgreSQL 18 (port 5433)

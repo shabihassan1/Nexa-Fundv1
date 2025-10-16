@@ -68,13 +68,20 @@ cd "RS(Nexa Fund)/RecomendationSystem(NF)"
 
 ## ✨ Key Features
 
-### 🤖 AI Recommendation System (NEW)
-- **4 ML Algorithms:** Interest Match (60%), Content Similarity (30%), Collaborative Filtering (5%), Trending (5%)
+### 🤖 AI Recommendation System
+- **4 ML Algorithms:** Interest Match (40%), Collaborative Filtering (30%), Content Similarity (20%), Trending (10%)
 - **Personalized Discovery:** Browse page with "Top Matches", "Recommended", and "Other" sections
-- **Smart Badges:** Visual indicators (🌟 Top Match ≥35%, 🎯 Recommended 20-35%)
+- **Smart Badge System:** Compact "X% AI Match" badges on recommended campaigns (click to see full insights)
+- **AI Insights Modal:** Click badge to reveal computed metrics:
+  - **Match Score:** Multi-dimensional percentage with category breakdown
+  - **Success Probability:** 0-95% computed likelihood (Very High/High/Moderate/Building)
+  - **Community Strength:** Contextual analysis (Strong 🔥/Growing 📈/Building 🌱)
+  - **Urgency Detection:** Time-sensitive alerts for ending campaigns
+  - **Explainable AI:** "Why Recommended?" with transparent reasoning
 - **User Preferences:** Custom interest selection, funding preferences, risk tolerance, keywords
 - **Homepage Integration:** "✨ For You Campaigns" with personalized sorting
 - **Auto-Update:** Models retrain after new contributions
+- **Value Proof:** See [AI-Recommender-Value-Demonstration.md](docs/AI-Recommender-Value-Demonstration.md) vs. manual filters
 
 ### Security & Roles
 - **6-Tier Role System:** SUPER_ADMIN → ADMIN → MODERATOR → CREATOR → BACKER → USER

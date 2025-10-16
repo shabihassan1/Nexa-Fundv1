@@ -1,7 +1,8 @@
 import { Link } from "react-router-dom";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import StoredImage from "@/components/ui/StoredImage";
-import { TopMatchBadge, RecommendedBadge, TrendingBadge, EndingSoonBadge, BadgeContainer } from "./RecommendationBadge";
+import { TrendingBadge, EndingSoonBadge, BadgeContainer } from "./RecommendationBadge";
+import AIInsightsBadge from "./AIInsightsPanel";
 
 // Update the interface to match the backend data structure
 interface Campaign {
@@ -89,17 +90,15 @@ const CampaignCard = ({ campaign, showRecommendationBadge = false }: CampaignCar
             {campaign.category}
           </div>
           
-          {/* Recommendation badges - top left */}
+          {/* Badges - top left */}
           {showRecommendationBadge && (
             <div className="absolute top-2 left-2">
               <BadgeContainer>
-                {campaign.badge === 'top_match' && campaign.recommendationScore && (
-                  <TopMatchBadge score={campaign.recommendationScore} />
+                {/* AI Insights Badge - shows for any campaign with AI score */}
+                {campaign.recommendationScore && (
+                  <AIInsightsBadge campaign={campaign} />
                 )}
-                {campaign.badge === 'recommended' && campaign.recommendationScore && (
-                  <RecommendedBadge score={campaign.recommendationScore} />
-                )}
-                {campaign.badge === 'trending' && (
+                {campaign.badge === 'trending' && !campaign.recommendationScore && (
                   <TrendingBadge />
                 )}
                 {daysLeft !== null && daysLeft <= 7 && daysLeft > 0 && (
