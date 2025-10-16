@@ -11,6 +11,12 @@ import { prisma } from './config/database';
 import routes from './routes';
 import path from 'path';
 
+// Debug: Log environment on startup
+console.log('🔧 Environment Configuration:');
+console.log(`   NODE_ENV: ${config.nodeEnv}`);
+console.log(`   Port: ${config.port}`);
+console.log(`   Rate Limiting: ${config.nodeEnv === 'production' ? 'ENABLED' : 'DISABLED'}`);
+
 const app = express();
 
 // Enable gzip compression for all responses
@@ -50,13 +56,22 @@ app.use(cors(corsOptions));
 // Serve uploaded files statically
 app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: config.rateLimitWindowMs,
-  max: config.rateLimitMax,
-  message: 'Too many requests from this IP, please try again later.'
-});
-app.use(limiter);
+// Rate limiting - ONLY in production
+// Development: completely disabled for smooth testing
+if (config.nodeEnv === 'production') {
+  const limiter = rateLimit({
+    windowMs: config.rateLimitWindowMs,
+    max: config.rateLimitMax,
+    message: 'Too many requests from this IP, please try again later.',
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
+  app.use(limiter);
+  console.log(`⚡ Rate Limiting: ${config.rateLimitMax} requests per ${config.rateLimitWindowMs}ms`);
+} else {
+  // Development mode - no rate limiting at all
+  console.log('⚡ Rate Limiting: DISABLED (development mode)');
+}
 
 // Logging
 app.use(morgan(config.nodeEnv === 'production' ? 'combined' : 'dev'));
