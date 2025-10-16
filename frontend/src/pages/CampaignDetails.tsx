@@ -936,6 +936,17 @@ const CampaignDetails = () => {
                         </p>
                       </div>
                     )}
+
+                    {!isCreator && !hasActiveMilestone && campaign.status === 'COMPLETED' && (
+                      <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                        <p className="text-sm text-green-700 text-center font-medium">
+                          🎉 Campaign Fully Funded!
+                        </p>
+                        <p className="text-xs text-green-600 text-center mt-1">
+                          Thank you to all the contributors who made this project possible
+                        </p>
+                      </div>
+                    )}
                     
                     {!isCreator && campaign.status === 'PENDING' && (
                       <p className="text-xs text-amber-600 text-center">

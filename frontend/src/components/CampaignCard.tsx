@@ -16,6 +16,7 @@ interface Campaign {
   creatorId: string;
   startDate: string;
   endDate: string;
+  status?: string;
   backers?: number;
   daysLeft?: number;
   creator?: {
@@ -86,8 +87,17 @@ const CampaignCard = ({ campaign, showRecommendationBadge = false }: CampaignCar
           />
           
           {/* Category badge - top right */}
-          <div className="absolute top-2 right-2 bg-white py-1 px-2 rounded-full text-xs font-medium">
-            {campaign.category}
+          <div className="absolute top-2 right-2 flex flex-col gap-1 items-end">
+            <div className="bg-white py-1 px-2 rounded-full text-xs font-medium">
+              {campaign.category}
+            </div>
+            
+            {/* Completed badge */}
+            {campaign.status === 'COMPLETED' && (
+              <div className="bg-green-500 text-white py-1 px-2 rounded-full text-xs font-medium flex items-center gap-1">
+                ✓ Completed
+              </div>
+            )}
           </div>
           
           {/* Badges - top left */}

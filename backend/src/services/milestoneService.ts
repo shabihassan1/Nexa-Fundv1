@@ -960,7 +960,7 @@ export class MilestoneService {
           }
         });
 
-        // Set next milestone to ACTIVE
+        // Set next milestone to ACTIVE or mark campaign as COMPLETED
         const nextMilestone = await prisma.milestone.findFirst({
           where: {
             campaignId: milestone.campaignId,
@@ -974,6 +974,22 @@ export class MilestoneService {
             data: { status: MilestoneStatus.ACTIVE }
           });
           safeLog('Next milestone activated', { nextMilestoneId: nextMilestone.id, order: nextMilestone.order });
+        } else {
+          // No next milestone - this was the last one, mark campaign as COMPLETED
+          const allMilestones = await prisma.milestone.findMany({
+            where: { campaignId: milestone.campaignId },
+            orderBy: { order: 'asc' }
+          });
+          
+          const isLastMilestone = milestone.order === allMilestones.length;
+          
+          if (isLastMilestone) {
+            await prisma.campaign.update({
+              where: { id: milestone.campaignId },
+              data: { status: CampaignStatus.COMPLETED }
+            });
+            safeLog('🎉 Campaign marked as COMPLETED - all milestones approved!', { campaignId: milestone.campaignId });
+          }
         }
 
         safeLog('✅ Milestone approved and funds released', { milestoneId, txHash });

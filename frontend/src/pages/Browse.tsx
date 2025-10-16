@@ -40,10 +40,10 @@ const Browse = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const { user, isAuthenticated } = useAuth();
 
-  // Fetch all campaigns
+  // Fetch all campaigns (ACTIVE and COMPLETED)
   const { data, isLoading, error } = useQuery({
     queryKey: ['campaigns'],
-    queryFn: () => fetchCampaigns({ status: 'ACTIVE' }),
+    queryFn: () => fetchCampaigns(), // Fetch all, filter on frontend
     staleTime: 2 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
     refetchOnWindowFocus: false,
@@ -138,8 +138,8 @@ const Browse = () => {
       const matchesCategory = selectedCategory === "All Categories" || campaign.category === selectedCategory;
       const matchesSearch = campaign.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
                            campaign.description.toLowerCase().includes(searchQuery.toLowerCase());
-      const isActive = campaign.status === 'ACTIVE';
-      return matchesCategory && matchesSearch && isActive;
+      const isActiveOrCompleted = campaign.status === 'ACTIVE' || campaign.status === 'COMPLETED';
+      return matchesCategory && matchesSearch && isActiveOrCompleted;
     });
   }, [campaignsWithScores, selectedCategory, searchQuery]);
 
