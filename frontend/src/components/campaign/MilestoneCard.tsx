@@ -16,7 +16,9 @@ import {
   Edit,
   Upload,
   Eye,
-  Target
+  Target,
+  X,
+  Link as LinkIcon
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { VotingStats } from './VotingStats';
@@ -89,6 +91,7 @@ const MilestoneCard: React.FC<MilestoneCardProps> = ({
   isVoting = false
 }) => {
   const [showSubmissionModal, setShowSubmissionModal] = useState(false);
+  const [showProofModal, setShowProofModal] = useState(false);
   // Local formatCurrency function
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -110,7 +113,7 @@ const MilestoneCard: React.FC<MilestoneCardProps> = ({
     const isFullyFunded = currentAmount >= targetAmount;
 
     // If already in a final state, keep showing that
-    if (['SUBMITTED', 'VOTING', 'APPROVED', 'REJECTED'].includes(milestone.status)) {
+    if (['VOTING', 'APPROVED', 'REJECTED'].includes(milestone.status)) {
       return milestone.status;
     }
 
@@ -139,7 +142,6 @@ const MilestoneCard: React.FC<MilestoneCardProps> = ({
     switch (status) {
       case 'ACTIVE': return 'bg-green-100 text-green-800 border-green-200';
       case 'PENDING': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'SUBMITTED': return 'bg-blue-100 text-blue-800 border-blue-200';
       case 'VOTING': return 'bg-purple-100 text-purple-800 border-purple-200';
       case 'APPROVED': return 'bg-green-100 text-green-800 border-green-200';
       case 'REJECTED': return 'bg-red-100 text-red-800 border-red-200';
@@ -151,7 +153,6 @@ const MilestoneCard: React.FC<MilestoneCardProps> = ({
     switch (status) {
       case 'ACTIVE': return <Target className="h-4 w-4" />;
       case 'PENDING': return <Clock className="h-4 w-4" />;
-      case 'SUBMITTED': return <Upload className="h-4 w-4" />;
       case 'VOTING': return <Users className="h-4 w-4" />;
       case 'APPROVED': return <CheckCircle className="h-4 w-4" />;
       case 'REJECTED': return <AlertTriangle className="h-4 w-4" />;
@@ -211,7 +212,10 @@ const MilestoneCard: React.FC<MilestoneCardProps> = ({
           {/* Action Buttons */}
           {isCreator && (
             <div className="flex space-x-2">
-              {milestone.status === 'PENDING' && onEdit && (
+              {/* Edit button - only show if not fully funded and not in voting/completed state */}
+              {milestone.status === 'PENDING' && 
+               (milestone.currentAmount || 0) < milestone.amount && 
+               onEdit && (
                 <Button
                   size="sm"
                   variant="outline"
@@ -220,16 +224,21 @@ const MilestoneCard: React.FC<MilestoneCardProps> = ({
                   <Edit className="h-4 w-4" />
                 </Button>
               )}
-              {(milestone.status === 'PENDING' || milestone.status === 'ACTIVE') && onSubmit && (
+              
+              {/* Submit Proof button - ONLY show when fully funded and not yet submitted */}
+              {(milestone.currentAmount || 0) >= milestone.amount && 
+               ['PENDING', 'ACTIVE'].includes(milestone.status) && 
+               !milestone.submittedAt && (
                 <Button
                   size="sm"
                   onClick={() => setShowSubmissionModal(true)}
-                  className="bg-blue-600 hover:bg-blue-700"
+                  className="bg-green-600 hover:bg-green-700 text-white"
                 >
                   <Upload className="h-4 w-4 mr-1" />
-                  Submit for Voting
+                  Submit Proof of Completion
                 </Button>
               )}
+              
               {onViewDetails && (
                 <Button
                   size="sm"
@@ -287,15 +296,26 @@ const MilestoneCard: React.FC<MilestoneCardProps> = ({
         )}
 
         {/* Evidence Section */}
-        {milestone.evidence && (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <h4 className="font-medium text-blue-900 mb-2">Submitted Evidence</h4>
-            <p className="text-blue-800 text-sm">
-              Evidence has been submitted and is under review.
+        {milestone.evidence && milestone.status === 'VOTING' && (
+          <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="font-medium text-purple-900">Proof of Completion</h4>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setShowProofModal(true)}
+                className="border-purple-300 text-purple-700 hover:bg-purple-100"
+              >
+                <Eye className="h-4 w-4 mr-1" />
+                View Proof
+              </Button>
+            </div>
+            <p className="text-purple-800 text-sm">
+              Evidence has been provided and is under community review.
             </p>
             {milestone.submittedAt && (
-              <p className="text-blue-600 text-xs mt-1">
-                Submitted: {new Date(milestone.submittedAt).toLocaleDateString()}
+              <p className="text-purple-600 text-xs mt-1">
+                Proof submitted: {new Date(milestone.submittedAt).toLocaleDateString()}
               </p>
             )}
           </div>
@@ -345,22 +365,15 @@ const MilestoneCard: React.FC<MilestoneCardProps> = ({
                 </h4>
               </div>
 
-              {/* Real-time Voting Stats */}
-              <VotingStats milestoneId={milestone.id} token={token} />
-
-              {/* Vote Buttons */}
-              {isAuthenticated && !votingEnded && (
-                <div className="mt-4">
-                  <VoteButtons
-                    milestoneId={milestone.id}
-                    userHasVoted={userHasVoted}
-                    userVotingPower={userVotingPower}
-                    onVoteSuccess={() => {
-                      if (onRefetch) onRefetch();
-                    }}
-                  />
-                </div>
-              )}
+              {/* Real-time Voting Stats with integrated voting buttons */}
+              <VotingStats 
+                milestoneId={milestone.id} 
+                token={token}
+                isAuthenticated={isAuthenticated}
+                onVoteSuccess={() => {
+                  if (onRefetch) onRefetch();
+                }}
+              />
 
               {milestone.status === 'VOTING' && votingEnded && (
                 <div className="text-center text-sm text-gray-600 bg-gray-100 rounded p-2 mt-4">
@@ -377,17 +390,6 @@ const MilestoneCard: React.FC<MilestoneCardProps> = ({
                   </p>
                 </div>
               )}
-            </div>
-          </>
-        )}
-
-        {/* Submitted Status */}
-        {milestone.status === 'SUBMITTED' && (
-          <>
-            <Separator />
-            <div className="text-center text-sm text-gray-600 bg-blue-50 border border-blue-200 rounded p-3">
-              <Upload className="h-5 w-5 mx-auto mb-2 text-blue-600" />
-              This milestone has been submitted for review. Voting will open automatically.
             </div>
           </>
         )}
@@ -456,15 +458,136 @@ const MilestoneCard: React.FC<MilestoneCardProps> = ({
         isOpen={showSubmissionModal}
         onClose={() => setShowSubmissionModal(false)}
         milestone={milestone}
-        onSubmit={(submissionData) => {
-          // Call the onSubmit prop if provided
-          if (onSubmit) {
-            onSubmit(milestone.id);
+        onSubmit={async (submissionData) => {
+          try {
+            const token = localStorage.getItem('token');
+            if (!token) throw new Error('Not authenticated');
+
+            const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5050/api'}/milestones/${milestone.id}/submit`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+              },
+              body: JSON.stringify(submissionData)
+            });
+
+            if (!response.ok) {
+              const error = await response.json();
+              throw new Error(error.message || 'Failed to submit milestone');
+            }
+
+            setShowSubmissionModal(false);
+            if (onRefetch) onRefetch();
+          } catch (error) {
+            console.error('Error submitting milestone:', error);
+            throw error;
           }
-          setShowSubmissionModal(false);
-          if (onRefetch) onRefetch();
         }}
       />
+
+      {/* Proof Modal */}
+      {showProofModal && milestone.evidence && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowProofModal(false)}>
+          <div className="bg-white rounded-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="sticky top-0 bg-white border-b p-4 flex items-center justify-between">
+              <h3 className="text-lg font-semibold">Proof of Completion</h3>
+              <Button size="sm" variant="ghost" onClick={() => setShowProofModal(false)}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="p-6 space-y-6">
+              {(() => {
+                // Parse evidence - it could be string or object
+                let evidence: any = milestone.evidence;
+                if (typeof evidence === 'string') {
+                  try {
+                    evidence = JSON.parse(evidence);
+                  } catch {
+                    // If parsing fails, treat as plain text
+                    return <div className="text-gray-700 whitespace-pre-wrap">{evidence}</div>;
+                  }
+                }
+
+                return (
+                  <>
+                    {/* Description from milestone.description or evidence.description */}
+                    {(milestone.description || evidence?.description) && (
+                      <div>
+                        <h4 className="font-medium text-gray-900 mb-2">Description</h4>
+                        <p className="text-gray-700 whitespace-pre-wrap">
+                          {milestone.description || evidence.description}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Files/Images */}
+                    {evidence?.files && Array.isArray(evidence.files) && evidence.files.length > 0 && (
+                      <div>
+                        <h4 className="font-medium text-gray-900 mb-3">Uploaded Files</h4>
+                        <div className="grid grid-cols-2 gap-4">
+                          {evidence.files.map((fileUrl: string, index: number) => (
+                            <div key={index} className="border rounded-lg overflow-hidden">
+                              <img 
+                                src={fileUrl} 
+                                alt={`Evidence ${index + 1}`} 
+                                className="w-full h-48 object-cover cursor-pointer hover:opacity-90"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  window.open(fileUrl, '_blank');
+                                }}
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).src = '/placeholder.svg';
+                                }}
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Text Items (additional text evidence) */}
+                    {evidence?.textItems && Array.isArray(evidence.textItems) && evidence.textItems.length > 0 && (
+                      <div>
+                        <h4 className="font-medium text-gray-900 mb-3">Additional Details</h4>
+                        <div className="space-y-4">
+                          {evidence.textItems.map((item: any, index: number) => (
+                            <div key={index} className="bg-gray-50 p-4 rounded-lg">
+                              <h5 className="font-medium text-gray-800 mb-2">{item.title}</h5>
+                              <p className="text-gray-700 whitespace-pre-wrap">{item.content}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Links */}
+                    {evidence?.links && Array.isArray(evidence.links) && evidence.links.length > 0 && (
+                      <div>
+                        <h4 className="font-medium text-gray-900 mb-3">Reference Links</h4>
+                        <div className="space-y-2">
+                          {evidence.links.map((link: string, index: number) => (
+                            <a
+                              key={index}
+                              href={link}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center text-blue-600 hover:text-blue-700 hover:underline break-all"
+                            >
+                              <LinkIcon className="h-4 w-4 mr-2 flex-shrink-0" />
+                              {link}
+                            </a>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
+            </div>
+          </div>
+        </div>
+      )}
     </Card>
   );
 };

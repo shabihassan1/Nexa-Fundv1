@@ -82,12 +82,13 @@ cd "RS(Nexa Fund)/RecomendationSystem(NF)"
 - **Content Moderation:** Report handling and fraud prevention
 - **File Management:** Image uploads with secure serving
 
-### 🎯 Intelligent Milestone System (NEW)
+### 🎯 Intelligent Milestone System
 - **Zero-Config Availability:** First milestone instantly accepts contributions at $0
 - **Sequential Progression:** Next milestone unlocks automatically when previous APPROVED
 - **Auto-Protection:** Over-funding prevented, contributions blocked when goal reached
-- **Dynamic Status:** UI reflects real-time availability (green "Active" badge)
-- **Proof-Based Flow:** Creator submits proof → Voting → Approval → Next milestone unlocks
+- **Database-First Voting:** 60% approval + 10% quorum thresholds, automatic state transitions
+- **Proof-Based Flow:** Creator submits proof → 7-day voting → Auto-approval → Next milestone activates
+- **Backer Detection:** Green badge shows contribution amount, vote buttons only for backers
 
 ### Smart Contracts (Deployed & Integrated)
 - **Escrow System:** Contributions held in contract, not direct transfer
@@ -199,27 +200,29 @@ npx hardhat run scripts/deploy-realistic-campaign.ts --network tenderlyVTN  # De
 
 ## 🔄 Development Status
 
-### ✅ Completed (Phase 1-4)
+### ✅ Completed (Phase 1-5)
+- **Intelligent Milestone System:** Zero-config availability, sequential progression, auto-protection
+- **Milestone Voting & Release:** Weighted voting UI, automated fund release (hourly cron job)
 - **AI Recommendation System:** 4-algorithm ML engine with personalized campaign discovery
 - **User Preferences:** Interest profiling, funding preferences, risk tolerance, custom keywords
 - **Personalized UI:** Browse page sections (Top Matches/Recommended/Other), smart badges
 - **Homepage Integration:** "For You" campaigns with ML-powered sorting
 - Enterprise role-based access control (6 roles, 32+ permissions)
-- Campaign CRUD with reward tiers and milestones
+- Campaign CRUD with reward tiers and milestones (min 3, validation rules)
 - Admin dashboard and user management
-- Smart contracts deployed to Tenderly VTN
-- **Web3 Integration:** MetaMask wallet connection
-- **Escrow System:** Contributions to contract (not direct transfer)
-- **Network Auto-Switch:** Frontend switches to VTN automatically
+- Smart contracts deployed to Tenderly VTN with escrow + voting
+- **Web3 Integration:** MetaMask wallet connection, network auto-switch
+- **Dynamic Status Display:** Real-time availability indicators (green "Active" badges)
+- **Data Integrity:** Backfilled milestone currentAmount from contributions
 - Profile pages and activity tracking
-- File upload system
+- File upload system with secure serving
 - Cloud database integration (Neon PostgreSQL)
 - Error handling with decoded Solidity revert reasons
 
-### 🚧 In Progress (Phase 5)
-- Milestone voting UI for backers
-- Admin contract management dashboard
-- Per-campaign contract deployment (currently shared contract)
+### � Planned (Phase 6+)
+- Per-campaign contract deployment (currently shared escrow contract)
+- Campaign Details "Similar Campaigns" section
+- Dashboard recommendation widgets with "Why recommended?" tooltips
 
 ### 📋 Planned (Phase 6+)
 - Campaign Details "Similar Campaigns" section

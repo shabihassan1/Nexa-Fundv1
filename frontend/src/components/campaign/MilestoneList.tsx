@@ -54,6 +54,7 @@ interface MilestoneListProps {
   isCreator?: boolean;
   isAuthenticated?: boolean;
   campaignId?: string;
+  token?: string;
   onVote?: (milestoneId: string, isApproval: boolean) => void;
   onEdit?: (milestoneId: string) => void;
   onSubmit?: (milestoneId: string) => void;
@@ -68,6 +69,7 @@ const MilestoneList: React.FC<MilestoneListProps> = ({
   isCreator = false,
   isAuthenticated = false,
   campaignId,
+  token,
   onVote,
   onEdit,
   onSubmit,
@@ -96,7 +98,6 @@ const MilestoneList: React.FC<MilestoneListProps> = ({
   const stats = {
     total: milestones.length,
     pending: milestones.filter(m => m.status === 'PENDING').length,
-    submitted: milestones.filter(m => m.status === 'SUBMITTED').length,
     voting: milestones.filter(m => m.status === 'VOTING').length,
     approved: milestones.filter(m => m.status === 'APPROVED').length,
     rejected: milestones.filter(m => m.status === 'REJECTED').length,
@@ -109,7 +110,6 @@ const MilestoneList: React.FC<MilestoneListProps> = ({
   const statusFilters = [
     { key: 'all', label: 'All', count: stats.total },
     { key: 'pending', label: 'Pending', count: stats.pending },
-    { key: 'submitted', label: 'Submitted', count: stats.submitted },
     { key: 'voting', label: 'Voting', count: stats.voting },
     { key: 'approved', label: 'Approved', count: stats.approved },
     { key: 'rejected', label: 'Rejected', count: stats.rejected }
@@ -270,14 +270,6 @@ const MilestoneList: React.FC<MilestoneListProps> = ({
             </div>
             <p className="text-xs text-red-700">Rejected</p>
           </div>
-          
-          <div className="bg-blue-50 rounded-lg p-3">
-            <div className="flex items-center justify-center mb-1">
-              <TrendingUp className="h-4 w-4 text-blue-600 mr-1" />
-              <span className="font-medium text-blue-800">{stats.submitted}</span>
-            </div>
-            <p className="text-xs text-blue-700">Submitted</p>
-          </div>
         </div>
       )}
 
@@ -292,6 +284,7 @@ const MilestoneList: React.FC<MilestoneListProps> = ({
                 milestone={milestone}
                 isCreator={isCreator}
                 isAuthenticated={isAuthenticated}
+                token={token}
                 onVote={onVote}
                 onEdit={onEdit}
                 onSubmit={onSubmit}

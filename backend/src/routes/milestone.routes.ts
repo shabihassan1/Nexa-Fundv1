@@ -1,10 +1,13 @@
 import { Router } from 'express';
 import { MilestoneController } from '../controllers/milestone.controller';
-import { authMiddleware, requireRole } from '../middleware/auth.middleware';
+import { authMiddleware, optionalAuthMiddleware, requireRole } from '../middleware/auth.middleware';
 
 const router = Router();
 
-// Apply auth middleware to all routes
+// Public routes with optional auth (works for both logged in and anonymous users)
+router.get('/:milestoneId/voting-stats', optionalAuthMiddleware, MilestoneController.getVotingStats);
+
+// Apply auth middleware to protected routes
 router.use(authMiddleware);
 
 // Individual milestone routes
@@ -14,7 +17,6 @@ router.post('/:milestoneId/submit', MilestoneController.submitMilestone);
 router.post('/:milestoneId/vote', MilestoneController.voteOnMilestone);
 
 // NEW: Voting system routes
-router.get('/:milestoneId/voting-stats', MilestoneController.getVotingStats);
 router.post('/:milestoneId/submit-for-voting', MilestoneController.submitForVoting);
 router.post('/:milestoneId/vote-weighted', MilestoneController.voteWeighted);
 

@@ -172,6 +172,15 @@ const CampaignDetails = () => {
     ? new Set(contributions.map((c: any) => c.userId)).size 
     : campaign?._count?.contributions || 0;
 
+  // Calculate user's total contribution to this campaign
+  const userTotalContribution = isAuthenticated && user?.id 
+    ? contributions
+        .filter((c: any) => c.userId === user.id)
+        .reduce((sum: number, c: any) => sum + c.amount, 0)
+    : 0;
+
+  const isUserBacker = userTotalContribution > 0;
+
   // Creator data is already included in campaign.creator, no need for separate query
   // const { data: creator, isLoading: creatorLoading } = useQuery({
   //   queryKey: ['user', campaign?.creatorId],
@@ -534,6 +543,11 @@ const CampaignDetails = () => {
                     {campaign.status || 'ACTIVE'}
                   </Badge>
                   <Badge variant="outline">{campaign.category}</Badge>
+                  {isUserBacker && (
+                    <Badge className="bg-green-600 hover:bg-green-700 text-white">
+                      ✓ You Backed ${userTotalContribution.toLocaleString()}
+                    </Badge>
+                  )}
                 </div>
                 <h1 className="text-4xl lg:text-5xl font-bold text-gray-900 mb-4">
                   {campaign.title}
@@ -786,6 +800,7 @@ const CampaignDetails = () => {
                   isLoading={milestonesLoading}
                   isCreator={isCreator}
                   isAuthenticated={isAuthenticated}
+                  token={token}
                   campaignId={id}
                   onVote={handleVote}
                   onCreateMilestone={handleCreateMilestone}

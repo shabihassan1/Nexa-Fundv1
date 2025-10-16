@@ -481,8 +481,9 @@ export class MilestoneController {
   static async getVotingStats(req: Request, res: Response): Promise<void> {
     try {
       const { milestoneId } = req.params;
+      const userId = (req as any).user?.id; // Optional - if user is authenticated
 
-      const stats = await MilestoneService.getMilestoneVotingStats(milestoneId);
+      const stats = await MilestoneService.getMilestoneVotingStats(milestoneId, userId);
 
       res.json(stats);
     } catch (error: any) {

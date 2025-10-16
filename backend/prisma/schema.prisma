@@ -326,10 +326,9 @@ enum ReportStatus {
 }
 
 enum MilestoneStatus {
-  PENDING      // Awaiting creator submission
+  PENDING      // Awaiting creator submission or previous milestone approval
   ACTIVE       // Currently accepting contributions (only one milestone at a time)
-  SUBMITTED    // Submitted by creator, awaiting review
-  VOTING       // Under community voting
+  VOTING       // Under community voting (7 days after proof submission)
   APPROVED     // Approved and funds released
   REJECTED     // Rejected, needs resubmission
   EXPIRED      // Deadline passed without completion

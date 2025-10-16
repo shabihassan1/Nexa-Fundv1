@@ -153,8 +153,9 @@ export class MilestoneService {
         throw new Error('Only campaign creator can submit milestones');
       }
 
-      if (milestone.status !== MilestoneStatus.PENDING) {
-        throw new Error('Milestone is not in pending status');
+      // Allow submission for PENDING or ACTIVE milestones (active means it's been funded)
+      if (milestone.status !== MilestoneStatus.PENDING && milestone.status !== MilestoneStatus.ACTIVE) {
+        throw new Error(`Milestone must be PENDING or ACTIVE to submit proof. Current status: ${milestone.status}`);
       }
 
       // Create submission and update milestone
@@ -168,21 +169,32 @@ export class MilestoneService {
           }
         });
 
-        // Update milestone status
+        // Update milestone status to VOTING (skip SUBMITTED state for automatic flow)
+        const now = new Date();
+        const voteEndTime = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days from now
+        
         const updatedMilestone = await tx.milestone.update({
           where: { id: milestoneId },
           data: {
-            status: MilestoneStatus.SUBMITTED,
-            submittedAt: new Date(),
+            status: MilestoneStatus.VOTING,
+            submittedAt: now,
             evidence: submissionData.evidence,
-            votingDeadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days from now
+            voteStartTime: now,
+            voteEndTime: voteEndTime,
+            votingDeadline: voteEndTime
           }
         });
 
         return { submission, milestone: updatedMilestone };
       });
 
-      safeLog('Milestone submitted successfully', { milestoneId, userId });
+      safeLog('Milestone submitted and voting opened automatically', { 
+        milestoneId, 
+        userId,
+        status: 'VOTING',
+        votingDeadline: result.milestone.votingDeadline 
+      });
+      
       return result;
     } catch (error: any) {
       safeLog('Error submitting milestone', { error: error?.message });
@@ -449,7 +461,6 @@ export class MilestoneService {
       const stats = {
         total: milestones.length,
         pending: milestones.filter(m => m.status === MilestoneStatus.PENDING).length,
-        submitted: milestones.filter(m => m.status === MilestoneStatus.SUBMITTED).length,
         voting: milestones.filter(m => m.status === MilestoneStatus.VOTING).length,
         approved: milestones.filter(m => m.status === MilestoneStatus.APPROVED).length,
         rejected: milestones.filter(m => m.status === MilestoneStatus.REJECTED).length,
@@ -631,13 +642,14 @@ export class MilestoneService {
         throw new Error(`Cannot submit milestone with status: ${milestone.status}`);
       }
 
-      // Update milestone with evidence and set to SUBMITTED
+      // Update milestone with evidence and set to VOTING (skip SUBMITTED state)
       const updatedMilestone = await prisma.milestone.update({
         where: { id: milestoneId },
         data: {
-          status: MilestoneStatus.SUBMITTED,
+          status: MilestoneStatus.VOTING,
           submittedAt: new Date(),
-          evidence: evidence
+          evidence: evidence,
+          votingDeadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
         }
       });
 
@@ -676,8 +688,9 @@ export class MilestoneService {
         throw new Error('Milestone not found');
       }
 
-      if (milestone.status !== MilestoneStatus.SUBMITTED) {
-        throw new Error('Milestone must be submitted before opening voting');
+      // Allow opening voting if milestone is PENDING or VOTING (in case already open)
+      if (milestone.status !== MilestoneStatus.PENDING && milestone.status !== MilestoneStatus.VOTING) {
+        throw new Error(`Cannot open voting for milestone with status: ${milestone.status}`);
       }
 
       // Set voting window (7 days)
@@ -864,8 +877,6 @@ export class MilestoneService {
     noVotes: number;
   }> {
     try {
-      const { blockchainService } = await import('./blockchainService');
-      
       const milestone = await prisma.milestone.findUnique({
         where: { id: milestoneId },
         include: { 
@@ -873,7 +884,8 @@ export class MilestoneService {
             include: { 
               contributions: true
             } 
-          } 
+          },
+          votes: true
         }
       });
 
@@ -888,119 +900,126 @@ export class MilestoneService {
         };
       }
 
-      // Get vote data from blockchain
-      try {
-        const milestoneIndex = milestone.blockchainMilestoneIndex ?? milestone.order - 1;
-        const contractData = await blockchainService.getMilestoneData(milestoneIndex);
+      // Calculate voting statistics from database
+      const totalVotingPower = milestone.votes.reduce((sum, v) => sum + v.votingPower, 0);
+      const yesVotingPower = milestone.votes
+        .filter(v => v.isApproval)
+        .reduce((sum, v) => sum + v.votingPower, 0);
+      const noVotingPower = totalVotingPower - yesVotingPower;
+      
+      const goal = milestone.campaign?.targetAmount || 0;
+      const approvalPercentage = totalVotingPower > 0 ? (yesVotingPower / totalVotingPower) * 100 : 0;
+      const quorumPercentage = goal > 0 ? (totalVotingPower / goal) * 100 : 0;
+      
+      const quorumReached = quorumPercentage >= 10; // 10% of campaign goal
+      const approvalReached = approvalPercentage >= 60; // 60% of votes
 
-        const yesPower = parseFloat(contractData.yesPower);
-        const noPower = parseFloat(contractData.noPower);
-        const totalPower = yesPower + noPower;
-        const goal = milestone.campaign?.targetAmount || 0;
+      safeLog('Checking release conditions (DB)', {
+        milestoneId,
+        yesVotingPower,
+        noVotingPower,
+        totalVotingPower,
+        goal,
+        quorumReached,
+        approvalReached,
+        approvalPercentage: approvalPercentage.toFixed(1),
+        quorumPercentage: quorumPercentage.toFixed(1)
+      });
 
-        // Check release conditions
-        const quorumReached = totalPower >= (goal * 0.1); // 10% quorum
-        const approvalReached = totalPower > 0 && (yesPower / totalPower) >= 0.6; // 60% approval
-        
-        const approvalPercentage = totalPower > 0 ? (yesPower / totalPower) * 100 : 0;
-        const quorumPercentage = goal > 0 ? (totalPower / goal) * 100 : 0;
+      // Check if conditions are met
+      if (quorumReached && approvalReached) {
+        // Try blockchain finalization (optional)
+        let txHash: string | undefined;
+        try {
+          const { blockchainService } = await import('./blockchainService');
+          const milestoneIndex = milestone.blockchainMilestoneIndex ?? milestone.order - 1;
+          txHash = await blockchainService.finalizeMilestone(milestoneIndex);
+          safeLog('Milestone finalized on blockchain', { milestoneId, txHash });
+        } catch (blockchainError: any) {
+          safeLog('Blockchain finalization skipped (continuing with DB)', { 
+            error: blockchainError?.message 
+          });
+        }
 
-        safeLog('Checking release conditions', {
-          milestoneId,
-          yesPower,
-          noPower,
-          totalPower,
-          goal,
-          quorumReached,
-          approvalReached,
-          approvalPercentage,
-          quorumPercentage
+        // Update milestone to APPROVED
+        await prisma.milestone.update({
+          where: { id: milestoneId },
+          data: {
+            status: MilestoneStatus.APPROVED,
+            approvedAt: new Date(),
+            releaseTransactionHash: txHash
+          }
         });
 
-        if (quorumReached && approvalReached) {
-          // Call finalize on blockchain
-          const txHash = await blockchainService.finalizeMilestone(milestoneIndex);
-
-          // Update milestone to RELEASED
-          await prisma.milestone.update({
-            where: { id: milestoneId },
-            data: {
-              status: MilestoneStatus.APPROVED, // Using APPROVED as RELEASED
-              approvedAt: new Date(),
-              releaseTransactionHash: txHash
-            }
-          });
-
-          // Update campaign amounts
-          await prisma.campaign.update({
-            where: { id: milestone.campaignId },
-            data: {
-              escrowAmount: { decrement: milestone.amount },
-              releasedAmount: { increment: milestone.amount }
-            }
-          });
-
-          // Set next milestone to ACTIVE
-          const nextMilestone = await prisma.milestone.findFirst({
-            where: {
-              campaignId: milestone.campaignId,
-              order: milestone.order + 1
-            }
-          });
-
-          if (nextMilestone) {
-            await prisma.milestone.update({
-              where: { id: nextMilestone.id },
-              data: { status: MilestoneStatus.ACTIVE }
-            });
+        // Update campaign amounts
+        await prisma.campaign.update({
+          where: { id: milestone.campaignId },
+          data: {
+            escrowAmount: { decrement: milestone.amount },
+            releasedAmount: { increment: milestone.amount }
           }
+        });
 
-          safeLog('✅ Milestone released', { milestoneId, txHash });
-          return {
-            released: true,
-            rejected: false,
-            transactionHash: txHash,
-            approvalPercentage,
-            quorumPercentage,
-            yesVotes: yesPower,
-            noVotes: noPower
-          };
+        // Set next milestone to ACTIVE
+        const nextMilestone = await prisma.milestone.findFirst({
+          where: {
+            campaignId: milestone.campaignId,
+            order: milestone.order + 1
+          }
+        });
+
+        if (nextMilestone && nextMilestone.status === MilestoneStatus.PENDING) {
+          await prisma.milestone.update({
+            where: { id: nextMilestone.id },
+            data: { status: MilestoneStatus.ACTIVE }
+          });
+          safeLog('Next milestone activated', { nextMilestoneId: nextMilestone.id, order: nextMilestone.order });
         }
 
-        // Conditions not met - return status but don't mark as rejected yet (might still be in voting)
+        safeLog('✅ Milestone approved and funds released', { milestoneId, txHash });
         return {
-          released: false,
+          released: true,
           rejected: false,
+          transactionHash: txHash,
           approvalPercentage,
           quorumPercentage,
-          yesVotes: yesPower,
-          noVotes: noPower
+          yesVotes: yesVotingPower,
+          noVotes: noVotingPower
         };
-      } catch (blockchainError: any) {
-        if (blockchainError.message === 'MILESTONE_REJECTED') {
-          // Milestone did not meet conditions
-          await prisma.milestone.update({
-            where: { id: milestoneId },
-            data: {
-              status: MilestoneStatus.REJECTED,
-              rejectedAt: new Date(),
-              adminNotes: 'Did not meet release conditions (quorum or approval threshold)'
-            }
-          });
-
-          safeLog('❌ Milestone rejected', { milestoneId });
-          return {
-            released: false,
-            rejected: true,
-            approvalPercentage: 0,
-            quorumPercentage: 0,
-            yesVotes: 0,
-            noVotes: 0
-          };
-        }
-
-        throw blockchainError;
       }
+
+      // Check if voting period has ended without meeting conditions
+      if (milestone.voteEndTime && new Date() > milestone.voteEndTime) {
+        // Mark as rejected
+        await prisma.milestone.update({
+          where: { id: milestoneId },
+          data: {
+            status: MilestoneStatus.REJECTED,
+            rejectedAt: new Date(),
+            adminNotes: `Did not meet release conditions: ${approvalPercentage.toFixed(1)}% approval (need 60%), ${quorumPercentage.toFixed(1)}% quorum (need 10%)`
+          }
+        });
+
+        safeLog('❌ Milestone rejected (voting ended, conditions not met)', { milestoneId });
+        return {
+          released: false,
+          rejected: true,
+          approvalPercentage,
+          quorumPercentage,
+          yesVotes: yesVotingPower,
+          noVotes: noVotingPower
+        };
+      }
+
+      // Voting still active, conditions not yet met
+      return {
+        released: false,
+        rejected: false,
+        approvalPercentage,
+        quorumPercentage,
+        yesVotes: yesVotingPower,
+        noVotes: noVotingPower
+      };
     } catch (error: any) {
       safeLog('Error checking and releasing milestone', { error: error?.message });
       return {
@@ -1017,7 +1036,7 @@ export class MilestoneService {
   /**
    * Get milestone voting statistics
    */
-  static async getMilestoneVotingStats(milestoneId: string) {
+  static async getMilestoneVotingStats(milestoneId: string, userId?: string) {
     try {
       const milestone = await prisma.milestone.findUnique({
         where: { id: milestoneId },
@@ -1035,6 +1054,7 @@ export class MilestoneService {
           },
           campaign: {
             select: {
+              id: true,
               targetAmount: true,
               contributions: true
             }
@@ -1063,6 +1083,23 @@ export class MilestoneService {
       const quorumPercentage = (totalVotingPower / milestone.campaign.targetAmount) * 100;
       const quorumReached = quorumPercentage >= 10;
 
+      // User-specific data (only if userId provided)
+      let userVotingPower = 0;
+      let userHasVoted = false;
+
+      if (userId) {
+        // Check if user has voted
+        const userVote = milestone.votes.find(v => v.userId === userId);
+        userHasVoted = !!userVote;
+
+        // Calculate user's voting power based on contributions
+        const userContributions = milestone.campaign.contributions
+          .filter((c: any) => c.userId === userId)
+          .reduce((sum: number, c: any) => sum + c.amount, 0);
+        
+        userVotingPower = userContributions;
+      }
+
       const stats = {
         milestoneId: milestone.id,
         status: milestone.status,
@@ -1089,7 +1126,10 @@ export class MilestoneService {
         voteEndTime: milestone.voteEndTime,
         timeRemaining: milestone.voteEndTime 
           ? Math.max(0, milestone.voteEndTime.getTime() - Date.now())
-          : 0
+          : 0,
+        // User-specific fields
+        userVotingPower,
+        userHasVoted
       };
 
       return stats;

@@ -107,6 +107,69 @@ export const authMiddleware = async (req: Request, res: Response, next: NextFunc
 };
 
 /**
+ * Optional authentication middleware
+ * Extracts user from token if provided, but doesn't require it
+ * Used for endpoints that should work for both authenticated and anonymous users
+ */
+export const optionalAuthMiddleware = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    // Get token from Authorization header
+    const authHeader = req.headers.authorization;
+    
+    // If no token provided, continue without user
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      next();
+      return;
+    }
+    
+    const token = authHeader.split(' ')[1];
+    
+    if (!token) {
+      next();
+      return;
+    }
+    
+    // Verify token
+    const decoded = jwt.verify(token, config.jwtSecret) as { id: string };
+    
+    if (!decoded || !decoded.id) {
+      next();
+      return;
+    }
+    
+    // Find user in database
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.id },
+      select: {
+        id: true,
+        email: true,
+        walletAddress: true,
+        role: true,
+        status: true,
+        isVerified: true
+      }
+    });
+    
+    if (user && user.status !== 'SUSPENDED' && user.status !== 'BANNED') {
+      // Attach user to request object
+      req.user = {
+        id: user.id,
+        email: user.email || undefined,
+        walletAddress: user.walletAddress,
+        role: user.role,
+        status: user.status,
+        isVerified: user.isVerified
+      };
+    }
+    
+    next();
+  } catch (error) {
+    // On any error, just continue without user (don't block request)
+    next();
+  }
+};
+
+/**
  * Role-based authorization middleware
  * Checks if user has required role
  */

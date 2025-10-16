@@ -2,15 +2,18 @@ import { useQuery } from '@tanstack/react-query';
 import { fetchMilestoneVotingStats } from '@/services/campaignService';
 import { CheckCircle2, XCircle, Users, TrendingUp } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { VoteButtons } from './VoteButtons';
 
 interface VotingStatsProps {
   milestoneId: string;
   token?: string;
+  isAuthenticated?: boolean;
+  onVoteSuccess?: () => void;
 }
 
-export function VotingStats({ milestoneId, token }: VotingStatsProps) {
+export function VotingStats({ milestoneId, token, isAuthenticated, onVoteSuccess }: VotingStatsProps) {
   const { data: stats, isLoading, error } = useQuery({
-    queryKey: ['voting-stats', milestoneId],
+    queryKey: ['voting-stats', milestoneId, token],
     queryFn: () => fetchMilestoneVotingStats(milestoneId, token),
     refetchInterval: 10000, // Refetch every 10 seconds for real-time updates
   });
@@ -211,6 +214,18 @@ export function VotingStats({ milestoneId, token }: VotingStatsProps) {
             ))}
           </div>
         </details>
+      )}
+
+      {/* Vote Buttons - only show if authenticated, has voting power, and hasn't voted */}
+      {isAuthenticated && stats.userVotingPower > 0 && !stats.userHasVoted && stats.voteEndTime && new Date(stats.voteEndTime) > new Date() && (
+        <div className="mt-4 pt-4 border-t border-gray-200">
+          <VoteButtons
+            milestoneId={milestoneId}
+            userHasVoted={stats.userHasVoted}
+            userVotingPower={stats.userVotingPower}
+            onVoteSuccess={onVoteSuccess}
+          />
+        </div>
       )}
     </div>
   );

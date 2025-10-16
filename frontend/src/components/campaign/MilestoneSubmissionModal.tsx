@@ -24,14 +24,19 @@ import {
   X,
   Plus
 } from 'lucide-react';
+import { uploadMultipleFiles } from '@/services/uploadService';
 
 interface MilestoneSubmissionModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (submissionData: {
-    evidence: any;
     description: string;
-  }) => void;
+    evidence: {
+      files: string[];
+      links: string[];
+      textItems?: Array<{ title: string; content: string }>;
+    };
+  }) => Promise<void>;
   milestone?: {
     id: string;
     title: string;
@@ -61,6 +66,7 @@ const MilestoneSubmissionModal: React.FC<MilestoneSubmissionModalProps> = ({
   const [description, setDescription] = useState('');
   const [evidenceItems, setEvidenceItems] = useState<EvidenceItem[]>([]);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
+  const [uploading, setUploading] = useState(false);
 
   // Local formatCurrency function
   const formatCurrency = (amount: number) => {
@@ -97,6 +103,13 @@ const MilestoneSubmissionModal: React.FC<MilestoneSubmissionModalProps> = ({
       updateEvidenceItem(index, 'content', file);
       if (!evidenceItems[index].title) {
         updateEvidenceItem(index, 'title', file.name);
+      }
+      // Clear the error for this specific field
+      const errorKey = `evidence.${index}.content`;
+      if (errors[errorKey]) {
+        const newErrors = { ...errors };
+        delete newErrors[errorKey];
+        setErrors(newErrors);
       }
     }
   };
@@ -155,24 +168,63 @@ const MilestoneSubmissionModal: React.FC<MilestoneSubmissionModalProps> = ({
     return isValid;
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!validateSubmission()) return;
-
-    const submissionData = {
-      description: description.trim(),
-      evidence: {
-        items: evidenceItems.map(item => ({
-          type: item.type,
+    
+    setUploading(true);
+    
+    try {
+      // Collect all files to upload
+      const filesToUpload = evidenceItems
+        .filter(item => item.type === 'file' && item.content instanceof File)
+        .map(item => item.content as File);
+      
+      // Upload all files to backend
+      const uploadedUrls = filesToUpload.length > 0 
+        ? await uploadMultipleFiles(filesToUpload)
+        : [];
+      
+      // Collect all links
+      const links = evidenceItems
+        .filter(item => item.type === 'link')
+        .map(item => ({
+          url: item.content as string,
           title: item.title.trim(),
-          content: item.type === 'file' ? (item.content as File).name : item.content,
-          description: item.description?.trim() || '',
-          // For files, we would typically upload them separately and store the URL
-          ...(item.type === 'file' && { file: item.content })
-        }))
-      }
-    };
+          description: item.description?.trim() || ''
+        }));
+      
+      // Include text evidence in description with proper formatting
+      const textEvidence = evidenceItems
+        .filter(item => item.type === 'text')
+        .map(item => `\n\n### ${item.title}\n${item.content}`)
+        .join('');
+      
+      const fullDescription = description.trim() + textEvidence;
+      
+      // Backend expects { evidence: {...}, description: "..." }
+      const submissionData = {
+        description: fullDescription,
+        evidence: {
+          files: uploadedUrls,
+          links: links.map(l => l.url),
+          textItems: evidenceItems
+            .filter(item => item.type === 'text')
+            .map(item => ({
+              title: item.title,
+              content: item.content as string
+            }))
+        }
+      };
 
-    onSubmit(submissionData);
+      await onSubmit(submissionData);
+    } catch (error) {
+      console.error('Error submitting milestone:', error);
+      setErrors({ 
+        submit: error instanceof Error ? error.message : 'Failed to submit milestone' 
+      });
+    } finally {
+      setUploading(false);
+    }
   };
 
   const handleClose = () => {
@@ -252,7 +304,15 @@ const MilestoneSubmissionModal: React.FC<MilestoneSubmissionModalProps> = ({
             <Textarea
               id="description"
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              onChange={(e) => {
+                setDescription(e.target.value);
+                // Clear description error when user types enough
+                if (e.target.value.trim().length >= 20 && errors.description) {
+                  const newErrors = { ...errors };
+                  delete newErrors.description;
+                  setErrors(newErrors);
+                }
+              }}
               placeholder="Describe how you completed this milestone. Include details about what was accomplished, any challenges faced, and how the goals were met..."
               rows={4}
               className={errors.description ? 'border-red-500' : ''}
@@ -339,7 +399,15 @@ const MilestoneSubmissionModal: React.FC<MilestoneSubmissionModalProps> = ({
                         <Input
                           id={`evidence-title-${index}`}
                           value={item.title}
-                          onChange={(e) => updateEvidenceItem(index, 'title', e.target.value)}
+                          onChange={(e) => {
+                            updateEvidenceItem(index, 'title', e.target.value);
+                            // Clear title error when user starts typing
+                            if (e.target.value.trim() && errors[`evidence.${index}.title`]) {
+                              const newErrors = { ...errors };
+                              delete newErrors[`evidence.${index}.title`];
+                              setErrors(newErrors);
+                            }
+                          }}
                           placeholder="e.g., Demo Video, Screenshots, Repository Link"
                           className={errors[`evidence.${index}.title`] ? 'border-red-500' : ''}
                         />
@@ -356,7 +424,15 @@ const MilestoneSubmissionModal: React.FC<MilestoneSubmissionModalProps> = ({
                               id={`evidence-url-${index}`}
                               type="url"
                               value={item.content as string}
-                              onChange={(e) => updateEvidenceItem(index, 'content', e.target.value)}
+                              onChange={(e) => {
+                                updateEvidenceItem(index, 'content', e.target.value);
+                                // Clear URL error when user starts typing
+                                if (e.target.value.trim() && errors[`evidence.${index}.content`]) {
+                                  const newErrors = { ...errors };
+                                  delete newErrors[`evidence.${index}.content`];
+                                  setErrors(newErrors);
+                                }
+                              }}
                               placeholder="https://example.com"
                               className={errors[`evidence.${index}.content`] ? 'border-red-500' : ''}
                             />
@@ -376,6 +452,14 @@ const MilestoneSubmissionModal: React.FC<MilestoneSubmissionModalProps> = ({
                               accept="image/*,.pdf,.doc,.docx,.txt"
                               className={errors[`evidence.${index}.content`] ? 'border-red-500' : ''}
                             />
+                            {item.content instanceof File && (
+                              <div className="flex items-center mt-2 p-2 bg-green-50 border border-green-200 rounded">
+                                <CheckCircle className="h-4 w-4 text-green-600 mr-2" />
+                                <span className="text-sm text-green-800">
+                                  Selected: {(item.content as File).name} ({Math.round((item.content as File).size / 1024)}KB)
+                                </span>
+                              </div>
+                            )}
                             {errors[`evidence.${index}.content`] && (
                               <p className="text-red-500 text-xs mt-1">{errors[`evidence.${index}.content`]}</p>
                             )}
@@ -391,7 +475,15 @@ const MilestoneSubmissionModal: React.FC<MilestoneSubmissionModalProps> = ({
                             <Textarea
                               id={`evidence-text-${index}`}
                               value={item.content as string}
-                              onChange={(e) => updateEvidenceItem(index, 'content', e.target.value)}
+                              onChange={(e) => {
+                                updateEvidenceItem(index, 'content', e.target.value);
+                                // Clear text error when user starts typing
+                                if (e.target.value.trim() && errors[`evidence.${index}.content`]) {
+                                  const newErrors = { ...errors };
+                                  delete newErrors[`evidence.${index}.content`];
+                                  setErrors(newErrors);
+                                }
+                              }}
                               placeholder="Provide detailed text evidence..."
                               rows={3}
                               className={errors[`evidence.${index}.content`] ? 'border-red-500' : ''}
@@ -472,18 +564,28 @@ const MilestoneSubmissionModal: React.FC<MilestoneSubmissionModalProps> = ({
             </CardContent>
           </Card>
 
+          {/* Error Display */}
+          {errors.submit && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+              <div className="flex items-center">
+                <AlertTriangle className="h-4 w-4 text-red-600 mr-2" />
+                <span className="text-red-800 text-sm">{errors.submit}</span>
+              </div>
+            </div>
+          )}
+
           {/* Action Buttons */}
           <div className="flex justify-between">
-            <Button variant="outline" onClick={handleClose} disabled={isLoading}>
+            <Button variant="outline" onClick={handleClose} disabled={isLoading || uploading}>
               Cancel
             </Button>
             <Button 
               onClick={handleSubmit} 
-              disabled={isLoading || !description.trim() || evidenceItems.length === 0}
+              disabled={isLoading || uploading || !description.trim() || evidenceItems.length === 0}
               className="bg-blue-600 hover:bg-blue-700"
             >
-              {isLoading && <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />}
-              Submit for Review
+              {(isLoading || uploading) && <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />}
+              {uploading ? 'Uploading Files...' : 'Submit for Review'}
             </Button>
           </div>
         </div>
