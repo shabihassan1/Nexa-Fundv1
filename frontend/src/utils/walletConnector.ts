@@ -216,8 +216,8 @@ export const contributeToChain = async (
       );
     }
     
-    // Call the smart contract - funds go to ESCROW, not creator
-    console.log("📤 Calling contract.contribute()...");
+    // Send POL directly to UniversalEscrow contract - funds tracked by wallet address
+    console.log("📤 Sending POL to UniversalEscrow contract...");
     const result = await contributeToContract(provider, amountInPOL);
     
     console.log("✅ Contribution successful - funds locked in escrow:", {

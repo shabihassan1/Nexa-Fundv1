@@ -1,4 +1,4 @@
-import { MilestoneService } from '../services/milestoneService';
+import MilestoneService from '../services/milestoneService';
 import { prisma } from '../config/database';
 
 async function manualReleaseCheck() {

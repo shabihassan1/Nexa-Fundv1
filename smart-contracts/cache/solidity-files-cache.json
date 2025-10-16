@@ -1,10 +1,10 @@
 {
   "_format": "hh-sol-cache-2",
   "files": {
-    "C:\\Users\\shabi\\Desktop\\NexaFund v1\\Nexa-Fundv1\\smart-contracts\\contracts\\NexaFundWeightedV2.sol": {
-      "lastModificationDate": 1760644706888,
-      "contentHash": "484eca32daee935d15d416b03e3e63d3",
-      "sourceName": "contracts/NexaFundWeightedV2.sol",
+    "C:\\Users\\shabi\\Desktop\\NexaFund v1\\Nexa-Fundv1\\smart-contracts\\contracts\\NexaFundV3.sol": {
+      "lastModificationDate": 1760652673371,
+      "contentHash": "b14496debc6c784f69ff99655b9e62cc",
+      "sourceName": "contracts/NexaFundV3.sol",
       "solcConfig": {
         "version": "0.8.24",
         "settings": {
@@ -34,7 +34,43 @@
         "^0.8.24"
       ],
       "artifacts": [
-        "NexaFundWeightedV2"
+        "NexaFundV3"
+      ]
+    },
+    "C:\\Users\\shabi\\Desktop\\NexaFund v1\\Nexa-Fundv1\\smart-contracts\\contracts\\UniversalEscrow.sol": {
+      "lastModificationDate": 1760656627204,
+      "contentHash": "b2a2b549be70f9c275f7a4e8cbfd539d",
+      "sourceName": "contracts/UniversalEscrow.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.19"
+      ],
+      "artifacts": [
+        "UniversalEscrow"
       ]
     }
   }

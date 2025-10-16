@@ -37,51 +37,22 @@ export async function contributeToContract(
   amountInPOL: number
 ): Promise<{ txHash: string; amountInPOL: string }> {
   try {
-    const contract = getContractWithSigner(provider);
+    const signer = provider.getSigner();
+    const contractAddress = getContractAddress();
     const amountInWei = ethers.utils.parseEther(amountInPOL.toString());
 
-    console.log("Contributing to contract:", {
-      contract: getContractAddress(),
+    console.log("Contributing to UniversalEscrow contract:", {
+      contract: contractAddress,
       amountInPOL,
       amountInWei: amountInWei.toString(),
     });
 
-    // PRE-CHECK: Validate contribution won't exceed goal
-    try {
-      const [goal, raised] = await Promise.all([
-        contract.goal(),
-        contract.raised(),
-      ]);
-      
-      const goalBN = ethers.BigNumber.from(goal);
-      const raisedBN = ethers.BigNumber.from(raised);
-      const remaining = goalBN.sub(raisedBN);
-      
-      console.log("Campaign status:", {
-        goal: ethers.utils.formatEther(goal) + " POL",
-        raised: ethers.utils.formatEther(raised) + " POL",
-        remaining: ethers.utils.formatEther(remaining) + " POL",
-        attempting: amountInPOL + " POL"
-      });
-      
-      if (amountInWei.gt(remaining)) {
-        const remainingPOL = parseFloat(ethers.utils.formatEther(remaining));
-        throw new Error(
-          `Contribution exceeds campaign goal! Only ${remainingPOL.toFixed(4)} POL remaining. ` +
-          `You're trying to contribute ${amountInPOL} POL. Please reduce your contribution amount.`
-        );
-      }
-    } catch (error: any) {
-      // If it's our custom error, re-throw it
-      if (error.message?.includes("exceeds campaign goal")) {
-        throw error;
-      }
-      // Otherwise continue - maybe contract doesn't support these methods
-      console.warn("Could not pre-check campaign state:", error.message);
-    }
-
-    // Call the contribute() function
-    const tx = await contract.contribute({ value: amountInWei });
+    // UniversalEscrow: Just send POL directly to contract address (no function call needed)
+    // The receive() fallback function will handle it and emit Deposited event
+    const tx = await signer.sendTransaction({
+      to: contractAddress,
+      value: amountInWei
+    });
     
     console.log("Transaction sent:", tx.hash);
     

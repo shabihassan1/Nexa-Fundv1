@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { prisma } from '../config/database';
-import { MilestoneService, CreateMilestoneData, SubmitMilestoneData, VoteMilestoneData } from '../services/milestoneService';
+import MilestoneService, { CreateMilestoneData, SubmitMilestoneData, VoteMilestoneData } from '../services/milestoneService';
 import { z } from 'zod';
 import { UserRole } from '../generated/prisma';
 

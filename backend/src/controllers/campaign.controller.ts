@@ -405,7 +405,7 @@ export const campaignController = {
     try {
       const { id: campaignId } = req.params;
 
-      const { MilestoneService } = await import('../services/milestoneService');
+      const MilestoneService = (await import('../services/milestoneService')).default;
       const activeMilestone = await MilestoneService.getActiveMilestone(campaignId);
 
       if (!activeMilestone) {

@@ -14,26 +14,62 @@ import * as Contracts from ".";
 declare module "hardhat/types/runtime" {
   interface HardhatEthersHelpers extends HardhatEthersHelpersBase {
     getContractFactory(
+      name: "NexaFundV3",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.NexaFundV3__factory>;
+    getContractFactory(
       name: "NexaFundWeightedV2",
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.NexaFundWeightedV2__factory>;
+    getContractFactory(
+      name: "UniversalEscrow",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.UniversalEscrow__factory>;
 
+    getContractAt(
+      name: "NexaFundV3",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.NexaFundV3>;
     getContractAt(
       name: "NexaFundWeightedV2",
       address: string | ethers.Addressable,
       signer?: ethers.Signer
     ): Promise<Contracts.NexaFundWeightedV2>;
+    getContractAt(
+      name: "UniversalEscrow",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.UniversalEscrow>;
 
+    deployContract(
+      name: "NexaFundV3",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.NexaFundV3>;
     deployContract(
       name: "NexaFundWeightedV2",
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.NexaFundWeightedV2>;
+    deployContract(
+      name: "UniversalEscrow",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.UniversalEscrow>;
 
+    deployContract(
+      name: "NexaFundV3",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.NexaFundV3>;
     deployContract(
       name: "NexaFundWeightedV2",
       args: any[],
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.NexaFundWeightedV2>;
+    deployContract(
+      name: "UniversalEscrow",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.UniversalEscrow>;
 
     // default types
     getContractFactory(

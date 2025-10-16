@@ -160,71 +160,86 @@ export const contributionController = {
         res.status(400).json({ error: 'Transaction already recorded' });
         return;
       }
-      
-      // Prepare contribution data
-      const contributionData: any = {
-        userId,
-        campaignId,
-        amount: parseFloat(amount),
-        transactionHash,
-        blockNumber: blockNumber ? parseInt(blockNumber) : null
-      };
-      
-      // Add reward tier if provided
-      if (rewardTierId) {
-        contributionData.rewardTierId = rewardTierId;
-      }
-      
-      // Create contribution
-      const contribution = await prisma.contribution.create({
-        data: contributionData,
-        include: {
-          user: {
-            select: {
-              id: true,
-              name: true,
-              walletAddress: true
-            }
-          },
-          campaign: {
-            select: {
-              id: true,
-              title: true
-            }
-          },
-          rewardTier: {
-            select: {
-              id: true,
-              title: true,
-              description: true,
-              minimumAmount: true
-            }
-          }
-        }
-      });
-      
-      // Update campaign's current amount
-      await prisma.campaign.update({
-        where: { id: campaignId },
-        data: {
-          currentAmount: {
-            increment: parseFloat(amount)
-          }
-        }
-      });
 
-      // Update milestone's current amount
-      // The getActiveMilestone already returned the correct available milestone
-      const { MilestoneService } = await import('../services/milestoneService');
-      const availableMilestone = await MilestoneService.getActiveMilestone(campaignId);
-      
-      if (availableMilestone) {
-        const newCurrentAmount = parseFloat(availableMilestone.currentAmount.toString()) + parseFloat(amount);
-        const targetAmount = parseFloat(availableMilestone.amount.toString());
+      // FIX: Use database transaction to prevent race conditions
+      // This ensures contribution amount doesn't exceed remaining milestone amount
+      const result = await prisma.$transaction(async (tx) => {
+        // Get fresh milestone data inside transaction
+        let activeMilestone;
         
-        // Update the milestone's current amount (atomic operation)
-        await prisma.milestone.update({
-          where: { id: availableMilestone.id },
+        if (campaign.requiresMilestones) {
+          activeMilestone = await tx.milestone.findFirst({
+            where: {
+              campaignId,
+              status: 'ACTIVE'
+            }
+          });
+
+          if (!activeMilestone) {
+            throw new Error('No active milestone available');
+          }
+
+          // Re-check remaining amount with fresh data
+          const contributionAmount = parseFloat(amount);
+          const remainingAmount = activeMilestone.amount - activeMilestone.currentAmount;
+          
+          if (contributionAmount > remainingAmount) {
+            throw new Error(`Contribution exceeds remaining milestone amount. Maximum allowed: $${remainingAmount.toFixed(2)}`);
+          }
+
+          // Auto-cap contribution to remaining amount if needed (safety)
+          const actualAmount = Math.min(contributionAmount, remainingAmount);
+          
+          if (actualAmount !== contributionAmount) {
+            console.log(`⚠️ Contribution auto-capped: $${contributionAmount} → $${actualAmount}`);
+          }
+        }
+
+        // Prepare contribution data
+        const contributionData: any = {
+          userId,
+          campaignId,
+          amount: parseFloat(amount),
+          transactionHash,
+          blockNumber: blockNumber ? parseInt(blockNumber) : null
+        };
+        
+        // Add reward tier if provided
+        if (rewardTierId) {
+          contributionData.rewardTierId = rewardTierId;
+        }
+        
+        // Create contribution
+        const contribution = await tx.contribution.create({
+          data: contributionData,
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                walletAddress: true
+              }
+            },
+            campaign: {
+              select: {
+                id: true,
+                title: true
+              }
+            },
+            rewardTier: {
+              select: {
+                id: true,
+                title: true,
+                description: true,
+                minimumAmount: true
+              }
+            }
+          }
+        });
+        
+        // Update campaign's current amount
+        await tx.campaign.update({
+          where: { id: campaignId },
           data: {
             currentAmount: {
               increment: parseFloat(amount)
@@ -232,12 +247,29 @@ export const contributionController = {
           }
         });
 
-        // Log if milestone just became fully funded
-        if (newCurrentAmount >= targetAmount) {
-          console.log(`✅ Milestone ${availableMilestone.order} is now fully funded ($${newCurrentAmount}/$${targetAmount})`);
-          console.log(`   Next step: Creator should submit proof of completion`);
+        // Update milestone's current amount (if milestone-based)
+        if (activeMilestone) {
+          const updatedMilestone = await tx.milestone.update({
+            where: { id: activeMilestone.id },
+            data: {
+              currentAmount: {
+                increment: parseFloat(amount)
+              }
+            }
+          });
+
+          // Check if milestone just became fully funded
+          const newCurrentAmount = parseFloat(updatedMilestone.currentAmount.toString());
+          const targetAmount = parseFloat(updatedMilestone.amount.toString());
+          
+          if (newCurrentAmount >= targetAmount) {
+            console.log(`✅ Milestone ${updatedMilestone.order} is now fully funded ($${newCurrentAmount}/$${targetAmount})`);
+            console.log(`   Next step: Creator should submit proof of completion`);
+          }
         }
-      }
+
+        return contribution;
+      });
       
       // Trigger ML model refresh in background (non-blocking)
       // This updates collaborative filtering with new contribution data
@@ -253,9 +285,23 @@ export const contributionController = {
         // Non-blocking, ignore errors
       }
       
-      res.status(201).json(contribution);
-    } catch (error) {
+      res.status(201).json(result);
+    } catch (error: any) {
       console.error('Error creating contribution:', error);
+      
+      // Handle transaction errors with user-friendly messages
+      if (error.message?.includes('exceeds remaining milestone')) {
+        res.status(400).json({ error: error.message });
+        return;
+      }
+      
+      if (error.message?.includes('No active milestone')) {
+        res.status(400).json({ 
+          error: 'No active milestone available',
+          message: 'This campaign currently has no active milestone accepting contributions.'
+        });
+        return;
+      }
       res.status(500).json({ error: 'Failed to create contribution' });
     }
   },

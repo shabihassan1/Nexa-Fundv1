@@ -121,7 +121,7 @@ export class MilestoneReleaseJob {
     console.log(`      Vote End Time: ${milestone.voteEndTime.toISOString()}`);
 
     // Dynamically import to avoid circular dependencies
-    const { MilestoneService } = await import('../services/milestoneService');
+    const MilestoneService = (await import('../services/milestoneService')).default;
 
     try {
       // Attempt to check and release the milestone

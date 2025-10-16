@@ -251,8 +251,8 @@ export class MilestoneService {
         throw new Error('Only campaign backers can vote on milestones');
       }
 
-      // Calculate voting power based on contribution amount
-      const votingPower = Math.min(userContribution.amount / 50, 5); // Max 5x voting power
+      // FIX: Voting power = actual contribution amount (not divided by 50)
+      const votingPower = userContribution.amount;
 
       const result = await prisma.$transaction(async (tx) => {
         // Check if user already voted
@@ -280,14 +280,14 @@ export class MilestoneService {
           }
         });
 
-        // Update milestone vote counts
+        // FIX: Store voting power amounts instead of counts
         const updatedMilestone = await tx.milestone.update({
           where: { id: milestoneId },
           data: {
             votesFor: voteData.isApproval ? 
-              { increment: Math.floor(votingPower) } : undefined,
+              { increment: votingPower } : undefined,
             votesAgainst: !voteData.isApproval ? 
-              { increment: Math.floor(votingPower) } : undefined
+              { increment: votingPower } : undefined
           }
         });
 
@@ -295,6 +295,7 @@ export class MilestoneService {
       });
 
       // Check if milestone should be automatically approved/rejected
+      // AND check if all contributors have voted (early finalization)
       await this.checkMilestoneVotingResult(milestoneId);
 
       safeLog('Vote cast successfully', { milestoneId, userId, isApproval: voteData.isApproval });
@@ -306,27 +307,80 @@ export class MilestoneService {
   }
 
   // Check voting result and auto-approve/reject
+  // FIX: Use voting power from votes table, check against milestone amount, allow early finalization
   static async checkMilestoneVotingResult(milestoneId: string) {
     try {
       const milestone = await prisma.milestone.findUnique({
         where: { id: milestoneId },
-        include: { campaign: { include: { contributions: true } } }
+        include: { 
+          campaign: { include: { contributions: true } },
+          votes: true
+        }
       });
 
       if (!milestone || milestone.status !== MilestoneStatus.VOTING) {
         return;
       }
 
-      const totalVotes = milestone.votesFor + milestone.votesAgainst;
-      const approvalRate = totalVotes > 0 ? (milestone.votesFor / totalVotes) * 100 : 0;
+      // Calculate voting statistics using actual voting power
+      const totalVotingPower = milestone.votes.reduce((sum, v) => sum + v.votingPower, 0);
+      const yesVotingPower = milestone.votes
+        .filter(v => v.isApproval)
+        .reduce((sum, v) => sum + v.votingPower, 0);
+      const noVotingPower = totalVotingPower - yesVotingPower;
+      
+      // FIX: Quorum based on milestone amount, not campaign goal
+      const milestoneAmount = milestone.amount;
+      const approvalPercentage = totalVotingPower > 0 ? (yesVotingPower / totalVotingPower) * 100 : 0;
+      const quorumPercentage = milestoneAmount > 0 ? (totalVotingPower / milestoneAmount) * 100 : 0;
+      
+      const quorumReached = quorumPercentage >= 60; // 60% of milestone amount must vote
+      const approvalReached = approvalPercentage >= 60; // 60% of votes must be YES
 
-      // Auto-approve if 60% approval and significant votes
-      if (approvalRate >= 60 && totalVotes >= 3) {
-        await this.approveMilestone(milestoneId, 'AUTO_APPROVED');
-      }
-      // Auto-reject if below 40% and voting period ended
-      else if (approvalRate < 40 && milestone.votingDeadline && new Date() > milestone.votingDeadline) {
-        await this.rejectMilestone(milestoneId, 'AUTO_REJECTED', 'Insufficient community approval');
+      // Check if all contributors have voted (early finalization)
+      const uniqueContributors = new Set(milestone.campaign.contributions.map(c => c.userId)).size;
+      const uniqueVoters = milestone.votes.length;
+      const allContributorsVoted = uniqueVoters >= uniqueContributors;
+
+      // Check if voting period has ended
+      const votingPeriodEnded = milestone.voteEndTime && new Date() > milestone.voteEndTime;
+
+      safeLog('Checking voting result', {
+        milestoneId,
+        yesVotingPower,
+        noVotingPower,
+        totalVotingPower,
+        milestoneAmount,
+        approvalPercentage: approvalPercentage.toFixed(1),
+        quorumPercentage: quorumPercentage.toFixed(1),
+        quorumReached,
+        approvalReached,
+        allContributorsVoted,
+        votingPeriodEnded
+      });
+
+      // FIX: Finalize if conditions met OR all contributors voted OR voting period ended
+      if (quorumReached && approvalReached) {
+        // Conditions met - trigger blockchain release
+        await this.checkAndReleaseMilestone(milestoneId);
+        safeLog('✅ Milestone approved - conditions met', { milestoneId });
+      } else if (allContributorsVoted) {
+        // All contributors voted - finalize even if time hasn't ended
+        safeLog('⏱️ All contributors voted - finalizing early', { milestoneId });
+        if (quorumReached && approvalReached) {
+          await this.checkAndReleaseMilestone(milestoneId);
+        } else {
+          // Reject if conditions not met
+          await this.rejectMilestone(milestoneId, 'AUTO_REJECTED', `Failed: ${approvalPercentage.toFixed(1)}% approval (need 60%), ${quorumPercentage.toFixed(1)}% quorum (need 60%)`);
+        }
+      } else if (votingPeriodEnded) {
+        // Voting period ended - finalize based on current results
+        safeLog('⏱️ Voting period ended - finalizing', { milestoneId });
+        if (quorumReached && approvalReached) {
+          await this.checkAndReleaseMilestone(milestoneId);
+        } else {
+          await this.rejectMilestone(milestoneId, 'AUTO_REJECTED', `Failed: ${approvalPercentage.toFixed(1)}% approval (need 60%), ${quorumPercentage.toFixed(1)}% quorum (need 60%)`);
+        }
       }
     } catch (error: any) {
       safeLog('Error checking voting result', { error: error?.message });
@@ -680,8 +734,6 @@ export class MilestoneService {
    */
   static async openVotingForMilestone(milestoneId: string) {
     try {
-      const { blockchainService } = await import('./blockchainService');
-      
       const milestone = await prisma.milestone.findUnique({
         where: { id: milestoneId },
         include: { campaign: true }
@@ -700,7 +752,7 @@ export class MilestoneService {
       const voteStartTime = new Date();
       const voteEndTime = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
-      // Update database first
+      // Update database (V3: no blockchain voting needed)
       const updatedMilestone = await prisma.milestone.update({
         where: { id: milestoneId },
         data: {
@@ -711,33 +763,8 @@ export class MilestoneService {
         }
       });
 
-      // Open voting on blockchain
-      try {
-        const milestoneIndex = milestone.blockchainMilestoneIndex !== null 
-          ? milestone.blockchainMilestoneIndex 
-          : milestone.order - 1;
-        
-        const txHash = await blockchainService.openVoting(milestoneIndex, 7);
-
-        // Update with blockchain data
-        await prisma.milestone.update({
-          where: { id: milestoneId },
-          data: {
-            blockchainMilestoneIndex: milestoneIndex,
-            evidence: {
-              ...(milestone.evidence as any),
-              votingOpenedTxHash: txHash
-            }
-          }
-        });
-
-        safeLog('Voting opened successfully', { milestoneId, txHash });
-      } catch (blockchainError: any) {
-        safeLog('Blockchain voting open failed (continuing with DB only)', { 
-          error: blockchainError?.message 
-        });
-      }
-
+      safeLog('✅ Voting opened successfully (V3: backend-only)', { milestoneId, voteStartTime, voteEndTime });
+      
       return updatedMilestone;
     } catch (error: any) {
       safeLog('Error opening voting for milestone', { error: error?.message });
@@ -830,25 +857,8 @@ export class MilestoneService {
         return { vote, milestone: updatedMilestone };
       });
 
-      // Record vote on blockchain (if private key provided)
-      if (voterPrivateKey) {
-        try {
-          const { blockchainService } = await import('./blockchainService');
-          const milestoneIndex = milestone.blockchainMilestoneIndex ?? milestone.order - 1;
-          
-          const txHash = await blockchainService.voteMilestone(
-            milestoneIndex,
-            isApproval,
-            voterPrivateKey
-          );
-
-          safeLog('Vote recorded on blockchain', { milestoneId, txHash });
-        } catch (blockchainError: any) {
-          safeLog('Blockchain vote failed (continuing with DB only)', { 
-            error: blockchainError?.message 
-          });
-        }
-      }
+      // V3: No blockchain voting needed - all voting is backend-only
+      safeLog('Vote recorded (V3: backend-only)', { milestoneId, userId, isApproval, votingPower });
 
       // Check if release conditions are met
       await this.checkAndReleaseMilestone(milestoneId);
@@ -911,41 +921,93 @@ export class MilestoneService {
         .reduce((sum, v) => sum + v.votingPower, 0);
       const noVotingPower = totalVotingPower - yesVotingPower;
       
-      const goal = milestone.campaign?.targetAmount || 0;
+      // FIX: Use milestone amount, not campaign goal
+      const milestoneAmount = milestone.amount;
       const approvalPercentage = totalVotingPower > 0 ? (yesVotingPower / totalVotingPower) * 100 : 0;
-      const quorumPercentage = goal > 0 ? (totalVotingPower / goal) * 100 : 0;
+      const quorumPercentage = milestoneAmount > 0 ? (totalVotingPower / milestoneAmount) * 100 : 0;
       
-      const quorumReached = quorumPercentage >= 10; // 10% of campaign goal
-      const approvalReached = approvalPercentage >= 60; // 60% of votes
+      const quorumReached = quorumPercentage >= 60; // 60% of milestone amount must vote
+      const approvalReached = approvalPercentage >= 60; // 60% of votes must be YES
+
+      // Check if all contributors have voted (early finalization)
+      const uniqueContributors = new Set(
+        milestone.campaign.contributions
+          .filter(c => c.campaignId === milestone.campaignId)
+          .map(c => c.userId)
+      );
+      const uniqueVoters = new Set(milestone.votes.map(v => v.userId));
+      const allContributorsVoted = uniqueContributors.size === uniqueVoters.size && 
+                                    uniqueContributors.size > 0 &&
+                                    [...uniqueContributors].every(id => uniqueVoters.has(id));
+
+      // Check if voting period has ended
+      const votingPeriodEnded = milestone.voteEndTime ? new Date() > milestone.voteEndTime : false;
 
       safeLog('Checking release conditions (DB)', {
         milestoneId,
         yesVotingPower,
         noVotingPower,
         totalVotingPower,
-        goal,
+        milestoneAmount,
         quorumReached,
         approvalReached,
         approvalPercentage: approvalPercentage.toFixed(1),
-        quorumPercentage: quorumPercentage.toFixed(1)
+        quorumPercentage: quorumPercentage.toFixed(1),
+        allContributorsVoted,
+        votingPeriodEnded,
+        contributorCount: uniqueContributors.size,
+        voterCount: uniqueVoters.size
       });
 
-      // Check if conditions are met
-      if (quorumReached && approvalReached) {
-        // CRITICAL: Try blockchain finalization with retry logic
+      // Check if conditions are met AND (all voted OR period ended)
+      const canFinalize = (quorumReached && approvalReached) && (allContributorsVoted || votingPeriodEnded);
+      
+      if (canFinalize) {
+        // CRITICAL: Try blockchain release with retry logic (UniversalEscrow)
         let txHash: string | undefined;
         let blockchainReleased = false;
         const maxRetries = 3;
         
+        // Get creator wallet address
+        const campaignWithCreator = await prisma.campaign.findUnique({
+          where: { id: milestone.campaignId },
+          include: { creator: true }
+        });
+        
+        if (!campaignWithCreator?.creator?.walletAddress) {
+          safeLog('🚨 CRITICAL: Creator wallet address not found', { milestoneId, campaignId: milestone.campaignId });
+          return {
+            released: false,
+            rejected: false,
+            approvalPercentage,
+            quorumPercentage,
+            yesVotes: yesVotingPower,
+            noVotes: noVotingPower,
+            error: 'Creator wallet address not found'
+          };
+        }
+        
+        const creatorAddress = campaignWithCreator.creator.walletAddress;
+        const releaseAmount = milestone.amount.toString();
+        
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
           try {
             const { blockchainService } = await import('./blockchainService');
-            const milestoneIndex = milestone.blockchainMilestoneIndex ?? milestone.order - 1;
             
-            safeLog(`Attempting blockchain fund release (attempt ${attempt}/${maxRetries})`, { milestoneId });
-            txHash = await blockchainService.finalizeMilestone(milestoneIndex);
+            safeLog(`Attempting blockchain fund release (UniversalEscrow - attempt ${attempt}/${maxRetries})`, { 
+              milestoneId,
+              creatorAddress,
+              amount: releaseAmount
+            });
+            
+            txHash = await blockchainService.releaseFunds(
+              creatorAddress,
+              releaseAmount,
+              `Milestone approved: ${milestone.title}`
+            );
+            
             blockchainReleased = true;
-            safeLog('✅ Funds released on blockchain!', { milestoneId, txHash });
+            safeLog('✅ Funds released on blockchain (UniversalEscrow)!', { milestoneId, txHash, creatorAddress, amount: releaseAmount });
             break;
           } catch (blockchainError: any) {
             safeLog(`❌ Blockchain release attempt ${attempt} failed`, { 
@@ -1053,17 +1115,101 @@ export class MilestoneService {
 
       // Check if voting period has ended without meeting conditions
       if (milestone.voteEndTime && new Date() > milestone.voteEndTime) {
-        // Mark as rejected
-        await prisma.milestone.update({
-          where: { id: milestoneId },
-          data: {
-            status: MilestoneStatus.REJECTED,
-            rejectedAt: new Date(),
-            adminNotes: `Did not meet release conditions: ${approvalPercentage.toFixed(1)}% approval (need 60%), ${quorumPercentage.toFixed(1)}% quorum (need 10%)`
+        // Refund all backers via UniversalEscrow
+        try {
+          const { blockchainService } = await import('./blockchainService');
+          
+          // Get all contributors to this milestone's campaign
+          const contributors = await prisma.contribution.findMany({
+            where: { campaignId: milestone.campaignId },
+            include: { user: true }
+          });
+          
+          safeLog('Processing refunds for rejected milestone (UniversalEscrow)', { 
+            milestoneId, 
+            contributorCount: contributors.length 
+          });
+          
+          // Calculate total contributions and refund proportionally
+          const totalContributed = contributors.reduce((sum, c) => sum + c.amount, 0);
+          const milestoneRefundAmount = milestone.currentAmount; // Amount raised for this milestone
+          
+          let refundTxHashes: string[] = [];
+          let refundErrors: string[] = [];
+          
+          // Refund each backer proportionally
+          for (const contribution of contributors) {
+            try {
+              if (!contribution.user.walletAddress) {
+                safeLog('⚠️ Skipping refund - no wallet address', { 
+                  userId: contribution.userId,
+                  contributionId: contribution.id 
+                });
+                continue;
+              }
+              
+              // Calculate proportional refund amount
+              const refundProportion = contribution.amount / totalContributed;
+              const refundAmount = (milestoneRefundAmount * refundProportion).toFixed(6);
+              
+              safeLog(`Refunding ${refundAmount} POL to ${contribution.user.walletAddress}`, {
+                milestoneId,
+                contributionId: contribution.id
+              });
+              
+              const txHash = await blockchainService.refundFunds(
+                contribution.user.walletAddress,
+                refundAmount,
+                `Milestone rejected: ${milestone.title}`
+              );
+              
+              refundTxHashes.push(txHash);
+              safeLog('✅ Refund sent', { txHash, backerAddress: contribution.user.walletAddress, amount: refundAmount });
+            } catch (refundError: any) {
+              const errorMsg = `Failed to refund ${contribution.user.walletAddress}: ${refundError?.message}`;
+              refundErrors.push(errorMsg);
+              safeLog('❌ Refund failed', { 
+                error: refundError?.message,
+                backerAddress: contribution.user.walletAddress 
+              });
+            }
           }
-        });
+          
+          // Mark as rejected in database
+          const rejectionNote = `Did not meet release conditions: ${approvalPercentage.toFixed(1)}% approval (need 60%), ${quorumPercentage.toFixed(1)}% quorum (need 60%). Refunds processed: ${refundTxHashes.length}/${contributors.length}${refundErrors.length > 0 ? `. Errors: ${refundErrors.join('; ')}` : ''}`;
+          
+          await prisma.milestone.update({
+            where: { id: milestoneId },
+            data: {
+              status: MilestoneStatus.REJECTED,
+              rejectedAt: new Date(),
+              releaseTransactionHash: refundTxHashes.join(','), // Store all refund tx hashes
+              adminNotes: rejectionNote
+            }
+          });
 
-        safeLog('❌ Milestone rejected (voting ended, conditions not met)', { milestoneId });
+          safeLog('❌ Milestone rejected and refunds processed (UniversalEscrow)', { 
+            milestoneId, 
+            refundCount: refundTxHashes.length,
+            errorCount: refundErrors.length
+          });
+        } catch (blockchainError: any) {
+          safeLog('⚠️ Failed to process refunds on blockchain, marking DB only', { 
+            error: blockchainError?.message,
+            milestoneId 
+          });
+          
+          // Still mark as rejected in DB even if blockchain fails
+          await prisma.milestone.update({
+            where: { id: milestoneId },
+            data: {
+              status: MilestoneStatus.REJECTED,
+              rejectedAt: new Date(),
+              adminNotes: `Did not meet release conditions: ${approvalPercentage.toFixed(1)}% approval (need 60%), ${quorumPercentage.toFixed(1)}% quorum (need 60%). Blockchain refunds failed: ${blockchainError?.message}`
+            }
+          });
+        }
+
         return {
           released: false,
           rejected: true,
@@ -1074,7 +1220,22 @@ export class MilestoneService {
         };
       }
 
-      // Voting still active, conditions not yet met
+      // Voting still active - log why not finalizing yet
+      if (quorumReached && approvalReached) {
+        safeLog('⏳ Conditions met but waiting for: all contributors to vote OR voting period to end', {
+          milestoneId,
+          allVoted: allContributorsVoted,
+          periodEnded: votingPeriodEnded,
+          voteEndTime: milestone.voteEndTime
+        });
+      } else {
+        safeLog('⏳ Voting active, conditions not yet met', {
+          milestoneId,
+          quorumReached,
+          approvalReached
+        });
+      }
+      
       return {
         released: false,
         rejected: false,
@@ -1143,8 +1304,9 @@ export class MilestoneService {
         .filter(v => !v.isApproval)
         .reduce((sum, v) => sum + v.votingPower, 0);
 
-      const quorumPercentage = (totalVotingPower / milestone.campaign.targetAmount) * 100;
-      const quorumReached = quorumPercentage >= 10;
+      // FIX: Use milestone amount, not campaign target
+      const quorumPercentage = (totalVotingPower / milestone.amount) * 100;
+      const quorumReached = quorumPercentage >= 60;
 
       // User-specific data (only if userId provided)
       let userVotingPower = 0;
@@ -1228,31 +1390,56 @@ export class MilestoneService {
         throw new Error('Milestone must be in VOTING status to force release');
       }
 
-      // Verify voting conditions are met
+      // FIX: Verify voting conditions are met before allowing admin force release
       const totalVotingPower = milestone.votes.reduce((sum, v) => sum + v.votingPower, 0);
       const yesVotingPower = milestone.votes
         .filter(v => v.isApproval)
         .reduce((sum, v) => sum + v.votingPower, 0);
       
-      const goal = milestone.campaign.targetAmount;
+      // FIX: Use milestone amount, not campaign goal
+      const milestoneAmount = milestone.amount;
       const approvalPercentage = totalVotingPower > 0 ? (yesVotingPower / totalVotingPower) * 100 : 0;
-      const quorumPercentage = (totalVotingPower / goal) * 100;
+      const quorumPercentage = (totalVotingPower / milestoneAmount) * 100;
 
-      if (approvalPercentage < 60 || quorumPercentage < 10) {
-        throw new Error(`Conditions not met: ${approvalPercentage.toFixed(1)}% approval (need 60%), ${quorumPercentage.toFixed(1)}% quorum (need 10%)`);
+      // FIX: Require 60% quorum of milestone amount and 60% approval
+      if (approvalPercentage < 60 || quorumPercentage < 60) {
+        throw new Error(`⛔ Cannot force release - conditions not met: ${approvalPercentage.toFixed(1)}% approval (need 60%), ${quorumPercentage.toFixed(1)}% quorum (need 60% of milestone amount)`);
       }
 
-      safeLog('🔧 Admin forcing blockchain release (V2: Emergency Force Release)', { milestoneId });
+      safeLog('🔧 Admin forcing blockchain release (UniversalEscrow: Manual Release)', { milestoneId });
 
-      // V2: Force blockchain release with admin override (emergency only)
+      // UniversalEscrow: Force blockchain release to creator address (emergency only)
       let txHash: string | undefined;
       try {
         const { blockchainService } = await import('./blockchainService');
-        const milestoneIndex = milestone.blockchainMilestoneIndex ?? milestone.order - 1;
-        txHash = await blockchainService.adminForceRelease(milestoneIndex);
-        safeLog('✅ Admin force release successful (V2)', { milestoneId, txHash });
+        
+        // Get creator wallet address
+        const campaignWithCreator = await prisma.campaign.findUnique({
+          where: { id: milestone.campaignId },
+          include: { creator: true }
+        });
+        
+        if (!campaignWithCreator?.creator?.walletAddress) {
+          throw new Error('Creator wallet address not found');
+        }
+        
+        const creatorAddress = campaignWithCreator.creator.walletAddress;
+        const releaseAmount = milestone.amount.toString();
+        
+        txHash = await blockchainService.releaseFunds(
+          creatorAddress,
+          releaseAmount,
+          `Admin force release: ${milestone.title}`
+        );
+        
+        safeLog('✅ Admin force release successful (UniversalEscrow)', { 
+          milestoneId, 
+          txHash, 
+          creatorAddress, 
+          amount: releaseAmount 
+        });
       } catch (blockchainError: any) {
-        throw new Error(`Blockchain admin force release failed: ${blockchainError?.message}`);
+        throw new Error(`Blockchain release failed: ${blockchainError?.message}`);
       }
 
       // Update database only after successful blockchain release

@@ -1,15 +1,207 @@
 # Nexa Fund – Development Progress
 
 **Last Updated:** October 17, 2025  
-**Status:** V2 Contract Deployed - Testing Phase ✅
+**Status:** UniversalEscrow Deployed - Pure Payment Processor ✅
 
 ---
 
-## 🚨 Latest: V2 Contract Migration Complete (Oct 17, 2025)
+## 🚨 Latest: UniversalEscrow - Multi-Campaign Pure Escrow (Oct 17, 2025)
 
 # 📊 Progress Tracker - Nexa Fund Platform
 
 ## Latest Updates
+
+### ✅ **#29 - UniversalEscrow: Multi-Campaign Pure Escrow** (October 17, 2025)
+**Status:** ✅ COMPLETE
+
+**Problem:** V3 was single-campaign design, couldn't handle multiple campaigns
+- V3 hardcoded single creator and 3 milestones
+- Database has 14 campaigns with milestones
+- New milestones had no blockchain representation
+- Caused INSUFFICIENT_BALANCE errors when trying to release
+
+**Solution:** Universal escrow that doesn't need campaign registration
+- **Smart Contract:** Pure payment processor - tracks wallet deposits only
+- **Backend:** Handles ALL platform logic (campaigns, milestones, voting)
+- **Flow:** Backers deposit → Contract tracks by wallet → Admin releases/refunds by address
+
+**UniversalEscrow Contract Features:**
+1. **Payment Tracking:**
+   - `deposit()` - Anyone deposits POL, tracked by wallet address
+   - `contributions[address]` - Mapping tracks each wallet's deposits
+   - No campaign/milestone registration needed
+
+2. **Admin Functions:**
+   - `release(receiver, amount, reason)` - Send funds to any address
+   - `refund(backer, amount, reason)` - Refund to specific backer
+   - `withdraw()` - Emergency admin withdrawal
+   - Emits events: Released, Refunded
+
+3. **Removed from Contract:**
+   - ❌ No campaign registration
+   - ❌ No milestone arrays
+   - ❌ No hardcoded creators
+   - ❌ No voting logic
+   - ❌ No campaign-specific data
+
+4. **Complete Separation:**
+   - ✅ Contract = Dumb escrow (holds money)
+   - ✅ Backend = Smart platform (all logic)
+   - ✅ Works for unlimited campaigns
+   - ✅ Database defines all business rules
+
+**Deployment:**
+- Contract: `0x2d070bc3dD546a08d603ff1d9640e430CE9F75DB`
+- Network: Tenderly VTN (Chain ID: 73571)
+- Admin: `0xDBc0C9a06362C941f4CD2380B88b188b955Ea68a`
+
+**Files Updated:**
+- `smart-contracts/contracts/UniversalEscrow.sol` - New pure escrow contract
+- `backend/src/services/blockchainService.ts` - Updated with `releaseFunds()` and `refundFunds()`
+- `backend/src/services/milestoneService.ts` - Release to creator address, refund to each backer
+- `backend/.env` - Updated CONTRACT_ADDRESS to `0x2d070bc3dD546a08d603ff1d9640e430CE9F75DB`
+- `frontend/.env` - Updated VITE_CONTRACT_ADDRESS to `0x2d070bc3dD546a08d603ff1d9640e430CE9F75DB`
+- `backend/src/abi/UniversalEscrow.json` - New ABI file
+- `frontend/src/abi/UniversalEscrow.json` - New ABI file
+
+**Backend Integration:**
+- **Milestone Approval:** Calls `releaseFunds(creatorAddress, milestoneAmount, reason)`
+- **Milestone Rejection:** Loops through all backers, calls `refundFunds(backerAddress, proportionalAmount, reason)` for each
+- **Admin Override:** Uses same `releaseFunds()` with admin force release reason
+- **Retry Logic:** 3 attempts with exponential backoff for blockchain operations
+
+### ✅ **#28 - NexaFundV3: Simplified Escrow (Backend Voting)** (October 17, 2025)
+**Status:** ⚠️ DEPRECATED - Replaced by UniversalEscrow
+
+**Problem:** V2 contract had voting logic that interfered with backend voting
+- Smart contract validated voting period end time
+- Caused "NOT_ENDED" errors even when conditions met
+- Prevented early finalization when all contributors voted
+
+**Solution:** Complete separation of concerns
+- **Smart Contract V3:** Pure escrow - holds funds, executes release/refund commands
+- **Backend:** Handles ALL voting logic, decision-making, and timing
+- **Flow:** Backend decides → Smart contract executes
+
+**Note:** V3 worked but was designed for single campaign. Replaced by UniversalEscrow for multi-campaign support.
+
+**V3 Contract Features:**
+1. **Escrow Functions:**
+   - `contribute()` - Backers send funds, held in contract
+   - `releaseMilestone(index)` - Admin command: send funds to creator
+   - `rejectMilestone(index)` - Admin command: mark for refunds
+   - `claimRefund(index)` - Backer claims proportional refund
+   - `cancelCampaign()` - Emergency cancellation
+   - `claimCancellationRefund()` - Full refund claim
+
+2. **Removed from Contract:**
+   - ❌ No voting logic
+   - ❌ No vote counting
+   - ❌ No quorum checks
+   - ❌ No approval thresholds
+   - ❌ No voting period validation
+
+3. **Backend Controls:**
+   - ✅ Vote collection and counting
+   - ✅ Quorum calculation (60% of milestone amount)
+   - ✅ Approval threshold (60% YES votes)
+   - ✅ Early finalization (all contributors voted)
+   - ✅ Period expiration handling
+   - ✅ Calls contract functions after decision
+
+```
+
+**Deployment Info:**
+- Contract: `NexaFundV3.sol`
+- Address: `0xAEC2007a4C54E23fDa570281346b9b070661DaBB`
+- Network: Tenderly VTN (Chain ID: 73571)
+- Admin/Creator: `0xDBc0C9a06362C941f4CD2380B88b188b955Ea68a`
+- Goal: 10,000 POL ($5,000)
+- Milestones: 3 (30%/40%/30%)
+
+**Files Updated:**
+- `smart-contracts/contracts/NexaFundV3.sol` ✅ Created
+- `smart-contracts/scripts/deploy-nexafund-v3.ts` ✅ Created
+- `backend/src/abi/NexaFundV3.json` ✅ Copied
+- `frontend/src/abi/NexaFundV3.json` ✅ Copied
+- `backend/.env` ✅ Updated CONTRACT_ADDRESS to V3
+- `frontend/.env` ✅ Updated VITE_CONTRACT_ADDRESS to V3
+- `backend/src/services/blockchainService.ts` ✅ Migrated to V3
+- `backend/src/services/milestoneService.ts` ✅ Updated to call V3 functions
+
+**V3 Migration Complete:**
+- ✅ Contract deployed to Tenderly VTN
+- ✅ ABI files copied to backend and frontend
+- ✅ Environment variables updated with V3 address
+- ✅ BlockchainService migrated to V3 (removed voting, added release/reject)
+- ✅ MilestoneService updated to call `releaseMilestone()` and `rejectMilestone()`
+- ✅ Removed blockchain voting calls (now backend-only)
+- ✅ Fixed early finalization logic - now requires:
+  - Quorum + Approval conditions MET
+  - AND (All contributors voted OR Voting period ended)
+
+**Orphaned Milestones Fixed (Oct 17, 2025):**
+- ✅ Identified milestones from V1/V2 contracts that can't connect to V3
+- ✅ Reset GreenSpace and SolarNeighborhood milestones from VOTING → ACTIVE
+- ✅ Cleared orphaned votes and admin notes
+- ℹ️ These campaigns need NEW contributions to V3 contract before voting can work
+- ℹ️ Old contributions ($25, $55, etc.) remain on V1/V2 contracts (historical data)
+
+**Voting Finalization Rules:**
+1. Conditions must be met: 60% quorum + 60% approval
+2. AND one of these:
+   - All contributors have cast their votes (early finalization)
+   - Voting period has expired (7 days default)
+3. Prevents premature release when conditions met but voting still open
+
+**Ready for Testing:**
+- Contribution to V3 contract
+- Backend voting → contract release flow
+- Rejection → backer refund flow
+
+---
+
+### ✅ **#27 - Critical Voting System Fixes** (October 17, 2025)
+**Status:** ✅ COMPLETE
+
+**Critical Bugs Fixed:**
+
+1. **Voting Power Calculation**
+   - **Bug:** Used `amount / 50` with max 5x multiplier (incorrect fractional system)
+   - **Fix:** Now uses actual contribution amount as voting power
+   - **Impact:** $25 contribution = 25 voting power (was 0.5, rounded to 0)
+
+2. **Quorum Calculation**
+   - **Bug:** Calculated against campaign goal instead of milestone amount
+   - **Fix:** Now uses milestone amount: `(totalVotingPower / milestoneAmount) * 100`
+   - **Impact:** For $50 milestone, need $30 in votes (60%), not based on $200 campaign goal
+
+3. **Approval Percentage**
+   - **Bug:** Used `votesFor/votesAgainst` counts with `Math.floor()` rounding
+   - **Fix:** Now stores and uses actual voting power amounts
+   - **Impact:** All votes count with proper weighting
+
+4. **Early Voting Finalization**
+   - **Added:** Voting ends when all contributors vote OR voting period expires
+   - **Impact:** No need to wait 7 days if all backers have voted
+
+5. **Admin Force Release Protection**
+   - **Added:** Requires 60% approval + 60% quorum before admin can force release
+   - **Impact:** Prevents unauthorized fund releases
+
+**Technical Changes:**
+- Line 255: `votingPower = userContribution.amount` (was amount/50)
+- Line 287-290: Store full voting power, not rounded counts
+- Line 310-383: Complete rewrite of `checkMilestoneVotingResult()` with proper logic
+- Line 970-973: Fixed quorum to use milestone amount
+- Line 1290-1296: Added approval verification to admin force release
+
+**Voting Rules (New):**
+- Quorum: 60% of milestone amount must vote
+- Approval: 60% of votes must be YES
+- Finalization: Triggers when conditions met OR all voted OR period ended
+
+---
 
 ### ✅ **#26 - V2 Contract Migration & Milestone Activation Fix** (October 17, 2025)
 **Status:** ✅ COMPLETE
@@ -26,7 +218,7 @@
    - **Problem:** Milestones created with PENDING status, contributions rejected
    - **Solution:** First milestone (order: 1) now automatically set to ACTIVE on creation
    - **Migration:** Created script to activate existing first milestones
-   - **Result:** GreenSpace campaign first milestone activated successfully
+   - **Result:** All 11 campaigns with milestones now have active first milestone
 
 **Changes Made:**
 
