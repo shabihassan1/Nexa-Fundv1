@@ -875,6 +875,7 @@ export class MilestoneService {
     quorumPercentage: number;
     yesVotes: number;
     noVotes: number;
+    error?: string;
   }> {
     try {
       const milestone = await prisma.milestone.findUnique({
@@ -928,37 +929,80 @@ export class MilestoneService {
 
       // Check if conditions are met
       if (quorumReached && approvalReached) {
-        // Try blockchain finalization (optional)
+        // CRITICAL: Try blockchain finalization with retry logic
         let txHash: string | undefined;
-        try {
-          const { blockchainService } = await import('./blockchainService');
-          const milestoneIndex = milestone.blockchainMilestoneIndex ?? milestone.order - 1;
-          txHash = await blockchainService.finalizeMilestone(milestoneIndex);
-          safeLog('Milestone finalized on blockchain', { milestoneId, txHash });
-        } catch (blockchainError: any) {
-          safeLog('Blockchain finalization skipped (continuing with DB)', { 
-            error: blockchainError?.message 
-          });
+        let blockchainReleased = false;
+        const maxRetries = 3;
+        
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+          try {
+            const { blockchainService } = await import('./blockchainService');
+            const milestoneIndex = milestone.blockchainMilestoneIndex ?? milestone.order - 1;
+            
+            safeLog(`Attempting blockchain fund release (attempt ${attempt}/${maxRetries})`, { milestoneId });
+            txHash = await blockchainService.finalizeMilestone(milestoneIndex);
+            blockchainReleased = true;
+            safeLog('✅ Funds released on blockchain!', { milestoneId, txHash });
+            break;
+          } catch (blockchainError: any) {
+            safeLog(`❌ Blockchain release attempt ${attempt} failed`, { 
+              error: blockchainError?.message,
+              milestoneId 
+            });
+            
+            // If this is the last attempt, fail the approval
+            if (attempt === maxRetries) {
+              safeLog('🚨 CRITICAL: All blockchain release attempts failed - milestone approval blocked', {
+                milestoneId,
+                error: blockchainError?.message
+              });
+              
+              // Mark milestone as needing manual intervention
+              await prisma.milestone.update({
+                where: { id: milestoneId },
+                data: {
+                  adminNotes: `REQUIRES MANUAL RELEASE: Blockchain finalization failed after ${maxRetries} attempts. Error: ${blockchainError?.message}`
+                }
+              });
+              
+              // Return without approving - funds stay in escrow
+              return {
+                released: false,
+                rejected: false,
+                approvalPercentage,
+                quorumPercentage,
+                yesVotes: yesVotingPower,
+                noVotes: noVotingPower,
+                error: 'Blockchain release failed - requires manual admin intervention'
+              };
+            }
+            
+            // Wait before retry (exponential backoff)
+            await new Promise(resolve => setTimeout(resolve, attempt * 2000));
+          }
         }
 
-        // Update milestone to APPROVED
-        await prisma.milestone.update({
-          where: { id: milestoneId },
-          data: {
-            status: MilestoneStatus.APPROVED,
-            approvedAt: new Date(),
-            releaseTransactionHash: txHash
-          }
-        });
+        // Only update database if blockchain release succeeded
+        if (blockchainReleased) {
+          // Update milestone to APPROVED
+          await prisma.milestone.update({
+            where: { id: milestoneId },
+            data: {
+              status: MilestoneStatus.APPROVED,
+              approvedAt: new Date(),
+              releaseTransactionHash: txHash
+            }
+          });
 
-        // Update campaign amounts
-        await prisma.campaign.update({
-          where: { id: milestone.campaignId },
-          data: {
-            escrowAmount: { decrement: milestone.amount },
-            releasedAmount: { increment: milestone.amount }
-          }
-        });
+          // Update campaign amounts (now in sync with blockchain)
+          await prisma.campaign.update({
+            where: { id: milestone.campaignId },
+            data: {
+              escrowAmount: { decrement: milestone.amount },
+              releasedAmount: { increment: milestone.amount }
+            }
+          });
+        }
 
         // Set next milestone to ACTIVE or mark campaign as COMPLETED
         const nextMilestone = await prisma.milestone.findFirst({
@@ -1151,6 +1195,104 @@ export class MilestoneService {
       return stats;
     } catch (error: any) {
       safeLog('Error getting voting stats', { error: error?.message });
+      throw error;
+    }
+  }
+
+  /**
+   * Admin force release - emergency override when blockchain fails
+   */
+  static async adminForceRelease(milestoneId: string) {
+    try {
+      const milestone = await prisma.milestone.findUnique({
+        where: { id: milestoneId },
+        include: { 
+          campaign: true,
+          votes: true 
+        }
+      });
+
+      if (!milestone) {
+        throw new Error('Milestone not found');
+      }
+
+      // Verify milestone is in a state that requires manual release
+      if (milestone.status === MilestoneStatus.APPROVED) {
+        throw new Error('Milestone already approved and released');
+      }
+
+      if (milestone.status !== MilestoneStatus.VOTING) {
+        throw new Error('Milestone must be in VOTING status to force release');
+      }
+
+      // Verify voting conditions are met
+      const totalVotingPower = milestone.votes.reduce((sum, v) => sum + v.votingPower, 0);
+      const yesVotingPower = milestone.votes
+        .filter(v => v.isApproval)
+        .reduce((sum, v) => sum + v.votingPower, 0);
+      
+      const goal = milestone.campaign.targetAmount;
+      const approvalPercentage = totalVotingPower > 0 ? (yesVotingPower / totalVotingPower) * 100 : 0;
+      const quorumPercentage = (totalVotingPower / goal) * 100;
+
+      if (approvalPercentage < 60 || quorumPercentage < 10) {
+        throw new Error(`Conditions not met: ${approvalPercentage.toFixed(1)}% approval (need 60%), ${quorumPercentage.toFixed(1)}% quorum (need 10%)`);
+      }
+
+      safeLog('🔧 Admin forcing blockchain release (V2: Emergency Force Release)', { milestoneId });
+
+      // V2: Force blockchain release with admin override (emergency only)
+      let txHash: string | undefined;
+      try {
+        const { blockchainService } = await import('./blockchainService');
+        const milestoneIndex = milestone.blockchainMilestoneIndex ?? milestone.order - 1;
+        txHash = await blockchainService.adminForceRelease(milestoneIndex);
+        safeLog('✅ Admin force release successful (V2)', { milestoneId, txHash });
+      } catch (blockchainError: any) {
+        throw new Error(`Blockchain admin force release failed: ${blockchainError?.message}`);
+      }
+
+      // Update database only after successful blockchain release
+      await prisma.milestone.update({
+        where: { id: milestoneId },
+        data: {
+          status: MilestoneStatus.APPROVED,
+          approvedAt: new Date(),
+          releaseTransactionHash: txHash,
+          adminNotes: 'Released by admin override after voting conditions met'
+        }
+      });
+
+      await prisma.campaign.update({
+        where: { id: milestone.campaignId },
+        data: {
+          escrowAmount: { decrement: milestone.amount },
+          releasedAmount: { increment: milestone.amount }
+        }
+      });
+
+      // Activate next milestone if exists
+      const nextMilestone = await prisma.milestone.findFirst({
+        where: {
+          campaignId: milestone.campaignId,
+          order: milestone.order + 1
+        }
+      });
+
+      if (nextMilestone) {
+        await prisma.milestone.update({
+          where: { id: nextMilestone.id },
+          data: { status: MilestoneStatus.ACTIVE }
+        });
+      }
+
+      return {
+        success: true,
+        transactionHash: txHash,
+        message: 'Funds released successfully via admin override'
+      };
+    } catch (error: any) {
+      safeLog('Error in admin force release', { error: error?.message });
       throw error;
     }
   }

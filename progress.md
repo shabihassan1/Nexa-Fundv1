@@ -1,11 +1,151 @@
 # Nexa Fund – Development Progress
 
 **Last Updated:** October 16, 2025  
-**Status:** Production-Ready with AI Explainability System ✅
+**Status:** Production-Ready with Robust Payment Flow ✅
 
 ---
 
-## 🎉 Latest: Campaign Completion System (Oct 16, 2025)
+## 🚨 Latest: CRITICAL Payment Flow Fix (Oct 16, 2025)
+
+# 📊 Progress Tracker - Nexa Fund Platform
+
+## Latest Updates
+
+### � **#25 - Creator Self-Withdrawal System** (October 2025)
+**Status:** 🚧 IN PROGRESS
+
+**Critical Security/UX Issue Identified:**
+- Current system requires **platform admin's private key** to release funds to creators
+- Platform controls all fund releases (centralized, security risk)
+- Creators cannot withdraw their own earned funds
+- Admin would need creator's private key (MAJOR SECURITY FLAW)
+
+**New Architecture - Creator Self-Withdrawal:**
+
+1. **Smart Contract Update** (`NexaFundWeightedV2.sol`)
+   - Added `creatorWithdraw(milestoneIndex)` - Creators withdraw using their own wallet
+   - Changed milestone state from `released` → `approved` + `withdrawn`
+   - Added `pendingWithdrawals` counter for approved but not withdrawn funds
+   - Added `getPendingWithdrawals()` view function
+   - Admin can still force withdraw in emergencies via `adminForceWithdraw()`
+
+2. **Creator Withdrawal Page** (`CreatorWithdraw.tsx`)
+   - Creators enter their own private key (stays in browser)
+   - Shows all approved milestones ready for withdrawal
+   - Individual withdraw buttons per milestone
+   - "Withdraw All" bulk operation
+   - Real-time transaction tracking and confirmation
+
+3. **Benefits:**
+   - ✅ Decentralized - No platform control over funds
+   - ✅ Secure - Creators hold their own keys
+   - ✅ Self-service - No admin intervention needed
+   - ✅ Emergency backup - Admin can still force release if creator loses key
+
+**Next Steps:**
+1. Deploy NexaFundWeightedV2.sol to Tenderly VTN
+2. Generate TypeScript types and ABI
+3. Add route to App.tsx for `/creator/withdraw`
+4. Test full withdrawal flow
+5. Migrate existing campaigns to V2 contract
+
+---
+
+### �🔄 **#24 - Fund Reconciliation System** (January 2025)
+**Status:** ⚠️ BLOCKED - ARCHITECTURE CHANGE NEEDED
+
+**Problem Solved:**
+- Completed campaigns with funds STILL STUCK in escrow
+- No mechanism to release funds from already-approved milestones
+- Database shows APPROVED but blockchain never released funds
+
+**Solution Implemented:**
+
+1. **Backend Reconciliation Service** (`reconciliationService.ts`)
+   - `findStuckMilestones()` - Finds all APPROVED milestones without transaction hashes
+   - `releaseStuckMilestone()` - Releases individual milestone with retry fallback
+   - `reconcileAllStuckMilestones()` - Bulk operation to fix all stuck funds
+   - `getReconciliationReport()` - Comprehensive report of stuck funds
+
+2. **Admin API Endpoints** (`reconciliation.routes.ts`)
+   - `GET /api/reconciliation/report` - Get stuck funds report
+   - `GET /api/reconciliation/stuck-milestones` - List all stuck milestones
+   - `POST /api/reconciliation/release/:milestoneId` - Release single milestone
+   - `POST /api/reconciliation/reconcile-all` - Bulk release all stuck funds
+
+3. **Admin Panel Integration** (`Reconciliation.tsx`)
+   - Dashboard showing stuck milestone count, total stuck funds, affected campaigns
+   - Individual release buttons for each stuck milestone
+   - Bulk "Release All" button with progress tracking
+   - Real-time status updates and transaction hashes
+   - Highlighted as "NEW" feature in admin panel
+
+**Technical Details:**
+- First tries `finalizeMilestone()` (normal voting check)
+- Falls back to `adminRelease()` if finalization fails
+- 2-second delay between releases to avoid blockchain overload
+- Comprehensive error handling with detailed logging
+- Admin-only access (ADMIN/SUPER_ADMIN roles)
+
+**Routes Added:**
+- Frontend: `/admin/reconciliation`
+- Backend: `/api/reconciliation/*`
+
+**Impact:**
+✅ Recovers stuck funds from already-completed campaigns
+✅ Provides clear visibility into fund synchronization issues
+✅ Enables single-click or bulk fund release
+✅ Prevents future accumulation of stuck funds
+
+---
+
+### 🔐 **#23 - Blockchain Payment Release System** (January 2025)
+**23. Mandatory Blockchain Fund Release** - No more silent failures!
+- **3-Attempt Retry Logic:** Exponential backoff (2s, 4s, 6s delays)
+- **Approval Blocking:** Database NOT updated unless blockchain succeeds
+- **Manual Intervention Flag:** Failed attempts mark milestone for admin review
+- **Admin Force Release:** Emergency endpoint `/api/milestones/:id/admin/force-release`
+- **Error Transparency:** Logs show blockchain vs database state
+- **No More Silent Failures:** System fails loudly when funds can't be released
+- **Fund Safety:** Database and blockchain stay in sync
+
+**Previous Issue:**
+```typescript
+// ❌ OLD CODE - Silent failure
+try {
+  await blockchain.release();
+} catch {
+  // ERROR IGNORED - DB updated anyway!
+}
+```
+
+**New Solution:**
+```typescript
+// ✅ NEW CODE - Mandatory success
+for (attempt = 1; attempt <= 3; attempt++) {
+  try {
+    txHash = await blockchain.release();
+    break; // Success!
+  } catch {
+    if (attempt === 3) {
+      // BLOCK APPROVAL - Require admin intervention
+      return { error: 'Blockchain release failed' };
+    }
+    await delay(attempt * 2000); // Retry with backoff
+  }
+}
+// Only update DB after blockchain success ✅
+```
+
+**Impact:**
+- ✅ Creators receive funds ONLY after blockchain confirmation
+- ✅ No more "approved but not paid" states
+- ✅ Admin override available for emergency situations
+- ✅ All fund movements tracked and logged
+
+---
+
+## 🎉 Campaign Completion System (Oct 16, 2025)
 
 ### ✅ Auto-Completion Feature
 **22. Campaign Completion System** - Automatic status updates when all milestones approved
@@ -263,3 +403,29 @@ Detailed docs moved to respective folders:
 ---
 
 **Status**: ✅ Production-ready MVP with complete milestone voting system. All core features implemented and tested.
+
+---
+
+##  LATEST: NexaFundWeightedV2 - True Escrow Contract (Oct 17, 2025)
+
+**Status:**  CONTRACT COMPLETE - READY FOR DEPLOYMENT
+
+**What Changed:**
+-  OLD V1: Admin manually releases funds with private key
+-  NEW V2: Contract auto-releases/refunds based on voting
+
+**V2 Features:**
+1. **Auto-Release** - Funds sent to creator automatically when approved
+2. **Auto-Refund** - Backers claim refunds when milestone rejected
+3. **Campaign Cancellation** - Full refunds for cancelled campaigns
+4. **Admin Emergency** - Force release only if auto-release fails
+
+**Key Functions:**
+- _checkAndFinalizeVote() - Auto-release or reject after voting
+- claimRefund(milestoneIndex) - Backer claims refund (signs with their key)
+- claimCancellationRefund() - Full refund on cancellation
+- dminForceRelease(index) - Emergency reconciliation
+- getPendingRefunds(backer) - View claimable refunds
+
+**Next:** Deploy to Tenderly VTN, generate types, update backend/frontend
+

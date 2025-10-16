@@ -103,8 +103,8 @@ app.get('/health', (req, res) => {
 // API info endpoint
 app.get('/api', (req, res) => {
   res.status(200).json({
-    message: 'Nexa Fund API is running!',
-    version: '1.0.0',
+    message: 'Nexa Fund API is running! (V2 Contract)',
+    version: '2.0.0',
     endpoints: {
       health: '/health',
       auth: '/api/auth',

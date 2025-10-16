@@ -2,7 +2,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Users, FileText, Flag, BarChart3, Settings, Shield, Home } from 'lucide-react';
+import { Users, FileText, Flag, BarChart3, Settings, Shield, Home, RefreshCw } from 'lucide-react';
 import RoleBadge from '@/components/RoleBadge';
 
 const AdminPanel = () => {
@@ -147,10 +147,13 @@ const AdminPanel = () => {
           {adminActions.map((action, index) => {
             const IconComponent = action.icon;
             return (
-              <Card key={index} className="hover:shadow-lg transition-shadow">
+              <Card 
+                key={index} 
+                className="hover:shadow-lg transition-shadow"
+              >
                 <CardHeader>
                   <div className="flex items-center space-x-3">
-                    <div className="p-2 bg-gray-100 rounded-lg">
+                    <div className="p-2 rounded-lg bg-gray-100">
                       <IconComponent className="h-6 w-6 text-gray-600" />
                     </div>
                     <div>
@@ -163,7 +166,7 @@ const AdminPanel = () => {
                 </CardHeader>
                 <CardContent>
                   <Button 
-                    className="w-full" 
+                    className="w-full"
                     variant="outline"
                     onClick={() => {
                       if (action.href === '/admin/users') {

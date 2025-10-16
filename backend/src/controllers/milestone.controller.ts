@@ -655,6 +655,36 @@ export class MilestoneController {
       res.status(500).json({ error: error?.message || 'Failed to trigger release check' });
     }
   }
+
+  /**
+   * Admin force release of milestone funds (emergency override)
+   * POST /api/milestones/:milestoneId/admin/force-release
+   * 
+   * Use when blockchain release failed but conditions are met
+   */
+  static async adminForceRelease(req: Request, res: Response): Promise<void> {
+    try {
+      const { milestoneId } = req.params;
+      const userId = req.user?.id;
+
+      if (!userId || (req.user?.role !== 'SUPER_ADMIN' && req.user?.role !== 'ADMIN')) {
+        res.status(403).json({ error: 'Admin access required' });
+        return;
+      }
+
+      safeLog('Admin force release initiated', { milestoneId, adminId: userId });
+
+      const result = await MilestoneService.adminForceRelease(milestoneId);
+
+      res.json({
+        message: 'Milestone funds released successfully',
+        result
+      });
+    } catch (error: any) {
+      safeLog('Error in adminForceRelease', { error: error?.message });
+      res.status(500).json({ error: error?.message || 'Failed to force release' });
+    }
+  }
 }
 
 export default MilestoneController; 

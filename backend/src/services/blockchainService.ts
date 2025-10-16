@@ -1,10 +1,19 @@
 import { ethers } from 'ethers';
-import NexaFundWeightedArtifact from '../abi/NexaFundWeighted.json';
+import NexaFundWeightedV2Artifact from '../abi/NexaFundWeightedV2.json';
 
-const CONTRACT_ADDRESS = process.env.CONTRACT_ADDRESS || '0x2428fB67608E04Dc3171f05e212211BBB633f589';
+const CONTRACT_ADDRESS = process.env.CONTRACT_ADDRESS || '0xa2878c85037A9D15C56d96CbD90a044e67f1358D';
 const ADMIN_PRIVATE_KEY = process.env.ADMIN_PRIVATE_KEY || '';
-const RPC_URL = process.env.TENDERLY_RPC_URL || 'https://virtual.mainnet.rpc.tenderly.co/73571';
+const RPC_URL = process.env.TENDERLY_RPC_URL || 'https://virtual.rpc.tenderly.co/TRK/project/public/nexa-vtn';
 
+/**
+ * BlockchainService - V2 Contract Integration
+ * 
+ * V2 Features:
+ * - Auto-release to creator when milestone approved (no manual release needed)
+ * - Auto-refund system for rejected milestones
+ * - Backer self-service refund claims
+ * - Admin emergency functions only (force release, reject milestone)
+ */
 export class BlockchainService {
   private provider: ethers.providers.JsonRpcProvider;
   private contract: ethers.Contract;
@@ -12,12 +21,23 @@ export class BlockchainService {
 
   constructor() {
     this.provider = new ethers.providers.JsonRpcProvider(RPC_URL);
-    this.adminSigner = new ethers.Wallet(ADMIN_PRIVATE_KEY, this.provider);
+    
+    // Only initialize admin signer if private key is provided
+    if (!ADMIN_PRIVATE_KEY || ADMIN_PRIVATE_KEY.trim() === '') {
+      console.warn('⚠️ ADMIN_PRIVATE_KEY not set - blockchain admin functions will not work');
+      // Create a dummy signer just to prevent errors
+      this.adminSigner = new ethers.Wallet('0x0000000000000000000000000000000000000000000000000000000000000001', this.provider);
+    } else {
+      this.adminSigner = new ethers.Wallet(ADMIN_PRIVATE_KEY, this.provider);
+    }
+    
     this.contract = new ethers.Contract(
       CONTRACT_ADDRESS,
-      NexaFundWeightedArtifact.abi,
+      NexaFundWeightedV2Artifact.abi,
       this.adminSigner
     );
+
+    console.log(`[BlockchainService] Initialized with V2 contract: ${CONTRACT_ADDRESS}`);
   }
 
   /**
@@ -75,14 +95,15 @@ export class BlockchainService {
   }
 
   /**
-   * Get milestone data from smart contract
+   * Get milestone data from smart contract (V2)
    * @param milestoneIndex - Index in contract milestones array
-   * @returns Milestone data including vote results
+   * @returns Milestone data including vote results and rejection status
    */
   async getMilestoneData(milestoneIndex: number): Promise<{
     description: string;
     amount: string;
     released: boolean;
+    rejected: boolean;
     yesPower: string;
     noPower: string;
     voteStart: number;
@@ -95,6 +116,7 @@ export class BlockchainService {
         description: data.description,
         amount: ethers.utils.formatEther(data.amount),
         released: data.released,
+        rejected: data.rejected, // V2: New rejected state
         yesPower: ethers.utils.formatEther(data.yesPower),
         noPower: ethers.utils.formatEther(data.noPower),
         voteStart: data.voteStart.toNumber(),
@@ -107,50 +129,117 @@ export class BlockchainService {
   }
 
   /**
-   * Finalize milestone - triggers auto-release if conditions met
+   * Finalize milestone - V2: Auto-releases or auto-rejects based on voting results
    * @param milestoneIndex - Index in contract milestones array
    * @returns Transaction hash
+   * 
+   * Note: In V2, this triggers automatic release to creator if approved,
+   * or marks as rejected if voting failed. No manual release needed!
    */
   async finalizeMilestone(milestoneIndex: number): Promise<string> {
     try {
-      console.log(`[Blockchain] Finalizing milestone ${milestoneIndex}`);
+      console.log(`[Blockchain] Finalizing milestone ${milestoneIndex} (V2: will auto-release or reject)`);
       
       const tx = await this.contract.finalize(milestoneIndex);
       const receipt = await tx.wait();
       
       console.log(`[Blockchain] Milestone finalized, TX: ${receipt.transactionHash}`);
+      console.log(`[Blockchain] ℹ️ Check milestone state for released=true or rejected=true`);
+      
       return receipt.transactionHash;
     } catch (error: any) {
       console.error('[Blockchain] Error finalizing milestone:', error);
-      
-      // Check if error is due to conditions not met
-      if (error?.message?.includes('Quorum not reached') || 
-          error?.message?.includes('Not enough approval')) {
-        console.log('[Blockchain] Milestone did not meet release conditions');
-        throw new Error('MILESTONE_REJECTED');
-      }
-      
       throw new Error(`Failed to finalize milestone: ${error?.message || 'Unknown error'}`);
     }
   }
 
   /**
-   * Admin override to release milestone funds
+   * V2: Admin emergency force release (only if auto-release failed)
    * @param milestoneIndex - Index in contract milestones array
    * @returns Transaction hash
+   * 
+   * WARNING: This is for emergency reconciliation only!
+   * Normal flow uses auto-release in finalizeMilestone()
    */
-  async adminRelease(milestoneIndex: number): Promise<string> {
+  async adminForceRelease(milestoneIndex: number): Promise<string> {
     try {
-      console.log(`[Blockchain] Admin releasing milestone ${milestoneIndex}`);
+      console.log(`[Blockchain] 🚨 EMERGENCY: Admin force releasing milestone ${milestoneIndex}`);
       
-      const tx = await this.contract.adminRelease(milestoneIndex);
+      const tx = await this.contract.adminForceRelease(milestoneIndex);
       const receipt = await tx.wait();
       
-      console.log(`[Blockchain] Admin release complete, TX: ${receipt.transactionHash}`);
+      console.log(`[Blockchain] Admin force release complete, TX: ${receipt.transactionHash}`);
       return receipt.transactionHash;
     } catch (error: any) {
-      console.error('[Blockchain] Error in admin release:', error);
-      throw new Error(`Failed to admin release: ${error?.message || 'Unknown error'}`);
+      console.error('[Blockchain] Error in admin force release:', error);
+      throw new Error(`Failed to admin force release: ${error?.message || 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * V2: Admin manually reject milestone (opens for refunds)
+   * @param milestoneIndex - Index in contract milestones array
+   * @param reason - Reason for rejection
+   * @returns Transaction hash
+   */
+  async adminRejectMilestone(milestoneIndex: number, reason: string): Promise<string> {
+    try {
+      console.log(`[Blockchain] Admin rejecting milestone ${milestoneIndex}: ${reason}`);
+      
+      const tx = await this.contract.adminRejectMilestone(milestoneIndex, reason);
+      const receipt = await tx.wait();
+      
+      console.log(`[Blockchain] Milestone rejected, backers can now claim refunds, TX: ${receipt.transactionHash}`);
+      return receipt.transactionHash;
+    } catch (error: any) {
+      console.error('[Blockchain] Error rejecting milestone:', error);
+      throw new Error(`Failed to reject milestone: ${error?.message || 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * V2: Backer claims refund for rejected milestone
+   * @param milestoneIndex - Index in contract milestones array
+   * @param backerPrivateKey - Backer's private key for signing
+   * @returns Transaction hash
+   */
+  async claimRefund(milestoneIndex: number, backerPrivateKey: string): Promise<string> {
+    try {
+      const backerSigner = new ethers.Wallet(backerPrivateKey, this.provider);
+      const contractWithBacker = this.contract.connect(backerSigner);
+      
+      console.log(`[Blockchain] Backer claiming refund for milestone ${milestoneIndex}`);
+      
+      const tx = await contractWithBacker.claimRefund(milestoneIndex);
+      const receipt = await tx.wait();
+      
+      console.log(`[Blockchain] Refund claimed, TX: ${receipt.transactionHash}`);
+      return receipt.transactionHash;
+    } catch (error: any) {
+      console.error('[Blockchain] Error claiming refund:', error);
+      throw new Error(`Failed to claim refund: ${error?.message || 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * V2: Get pending refunds for a backer
+   * @param backerAddress - Backer's wallet address
+   * @returns Array of milestone indices and refund amounts
+   */
+  async getPendingRefunds(backerAddress: string): Promise<{
+    milestoneIndices: number[];
+    refundAmounts: string[];
+  }> {
+    try {
+      const result = await this.contract.getPendingRefunds(backerAddress);
+      
+      return {
+        milestoneIndices: result[0].map((idx: ethers.BigNumber) => idx.toNumber()),
+        refundAmounts: result[1].map((amt: ethers.BigNumber) => ethers.utils.formatEther(amt))
+      };
+    } catch (error: any) {
+      console.error('[Blockchain] Error getting pending refunds:', error);
+      throw new Error(`Failed to get pending refunds: ${error?.message || 'Unknown error'}`);
     }
   }
 

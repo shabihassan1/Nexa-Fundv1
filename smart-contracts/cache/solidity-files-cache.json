@@ -1,10 +1,10 @@
 {
   "_format": "hh-sol-cache-2",
   "files": {
-    "C:\\Users\\shabi\\Desktop\\NexaFund v1\\Nexa-Fundv1\\smart-contracts\\contracts\\MilestoneEscrow.sol": {
-      "lastModificationDate": 1760211792750,
-      "contentHash": "ff8149d0d79c32e516e8a60b06b1995b",
-      "sourceName": "contracts/MilestoneEscrow.sol",
+    "C:\\Users\\shabi\\Desktop\\NexaFund v1\\Nexa-Fundv1\\smart-contracts\\contracts\\NexaFundWeightedV2.sol": {
+      "lastModificationDate": 1760644706888,
+      "contentHash": "484eca32daee935d15d416b03e3e63d3",
+      "sourceName": "contracts/NexaFundWeightedV2.sol",
       "solcConfig": {
         "version": "0.8.24",
         "settings": {
@@ -34,43 +34,7 @@
         "^0.8.24"
       ],
       "artifacts": [
-        "MilestoneEscrow"
-      ]
-    },
-    "C:\\Users\\shabi\\Desktop\\NexaFund v1\\Nexa-Fundv1\\smart-contracts\\contracts\\NexaFundWeighted.sol": {
-      "lastModificationDate": 1760211792751,
-      "contentHash": "cdf05c08e71681ff305ff1b03c31e957",
-      "sourceName": "contracts/NexaFundWeighted.sol",
-      "solcConfig": {
-        "version": "0.8.24",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 200
-          },
-          "evmVersion": "paris",
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          }
-        }
-      },
-      "imports": [],
-      "versionPragmas": [
-        "^0.8.24"
-      ],
-      "artifacts": [
-        "NexaFundWeighted"
+        "NexaFundWeightedV2"
       ]
     }
   }

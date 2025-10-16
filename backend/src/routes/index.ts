@@ -59,6 +59,6 @@ console.log('✅ Recommendation routes registered');
 router.use('/preferences', preferencesRoutes);
 console.log('✅ Preferences routes registered');
 
-console.log('🎉 All API routes registered successfully');
+console.log('🎉 All API routes registered successfully (V2 Contract)');
 
 export default router; 

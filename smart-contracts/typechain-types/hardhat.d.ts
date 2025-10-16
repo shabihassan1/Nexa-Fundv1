@@ -14,44 +14,26 @@ import * as Contracts from ".";
 declare module "hardhat/types/runtime" {
   interface HardhatEthersHelpers extends HardhatEthersHelpersBase {
     getContractFactory(
-      name: "MilestoneEscrow",
+      name: "NexaFundWeightedV2",
       signerOrOptions?: ethers.Signer | FactoryOptions
-    ): Promise<Contracts.MilestoneEscrow__factory>;
-    getContractFactory(
-      name: "NexaFundWeighted",
-      signerOrOptions?: ethers.Signer | FactoryOptions
-    ): Promise<Contracts.NexaFundWeighted__factory>;
+    ): Promise<Contracts.NexaFundWeightedV2__factory>;
 
     getContractAt(
-      name: "MilestoneEscrow",
+      name: "NexaFundWeightedV2",
       address: string | ethers.Addressable,
       signer?: ethers.Signer
-    ): Promise<Contracts.MilestoneEscrow>;
-    getContractAt(
-      name: "NexaFundWeighted",
-      address: string | ethers.Addressable,
-      signer?: ethers.Signer
-    ): Promise<Contracts.NexaFundWeighted>;
+    ): Promise<Contracts.NexaFundWeightedV2>;
 
     deployContract(
-      name: "MilestoneEscrow",
+      name: "NexaFundWeightedV2",
       signerOrOptions?: ethers.Signer | DeployContractOptions
-    ): Promise<Contracts.MilestoneEscrow>;
-    deployContract(
-      name: "NexaFundWeighted",
-      signerOrOptions?: ethers.Signer | DeployContractOptions
-    ): Promise<Contracts.NexaFundWeighted>;
+    ): Promise<Contracts.NexaFundWeightedV2>;
 
     deployContract(
-      name: "MilestoneEscrow",
+      name: "NexaFundWeightedV2",
       args: any[],
       signerOrOptions?: ethers.Signer | DeployContractOptions
-    ): Promise<Contracts.MilestoneEscrow>;
-    deployContract(
-      name: "NexaFundWeighted",
-      args: any[],
-      signerOrOptions?: ethers.Signer | DeployContractOptions
-    ): Promise<Contracts.NexaFundWeighted>;
+    ): Promise<Contracts.NexaFundWeightedV2>;
 
     // default types
     getContractFactory(

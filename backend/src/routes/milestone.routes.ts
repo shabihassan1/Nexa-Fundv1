@@ -48,6 +48,17 @@ router.post('/admin/trigger-release-check',
   MilestoneController.manualReleaseCheck
 );
 
+// Admin only - Force release milestone funds (emergency override)
+router.post('/:milestoneId/admin/force-release',
+  requireRole(['ADMIN', 'SUPER_ADMIN']),
+  MilestoneController.adminForceRelease
+);
+
+// Campaign milestone routes
+router.post('/campaign/:campaignId', MilestoneController.createMilestones);
+router.get('/campaign/:campaignId', MilestoneController.getMilestones);
+router.get('/campaign/:campaignId/stats', MilestoneController.getMilestoneStats);
+
 // User voting history
 router.get('/votes/my-votes', MilestoneController.getUserVotes);
 
