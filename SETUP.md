@@ -14,16 +14,72 @@
 
 ---
 
-## 📋 Quick Setup (3 Steps)
+## 📋 Quick Setup
 
-### Step 1: Get Cloud Database (2 minutes)
+### Choose Your Database Setup:
 
+#### **Option A: Local PostgreSQL (Recommended for Demo/Testing)** ⚡
+**Pros:** Lightning fast, no internet required, perfect for demos  
+**Cons:** Only accessible on this machine
+
+#### **Option B: Neon Cloud PostgreSQL** ☁️
+**Pros:** Access from any device, free hosting, no maintenance  
+**Cons:** Slower queries, requires internet connection
+
+---
+
+## 🗄️ Database Setup
+
+### Option A: Local PostgreSQL (Fast Demo Setup)
+
+**1. Install PostgreSQL**
+- Download from [postgresql.org/download](https://www.postgresql.org/download/)
+- Install with default settings
+- Remember your username/password and port
+
+**2. Create Database**
+```powershell
+# Using psql command line (or pgAdmin GUI)
+createdb -U postgres -p 5433 nexafund
+```
+
+**3. Configure Backend**
+```powershell
+cd backend
+copy .env.example .env
+# Edit .env - set DATABASE_URL to local:
+# DATABASE_URL="postgresql://postgres:YOUR_PASSWORD@localhost:YOUR_PORT/nexafund"
+```
+
+**4. Migrate Data from Neon (Optional)**
+```powershell
+# Export from Neon
+pg_dump "postgresql://user:pass@ep-xxx.neon.tech/neondb?sslmode=require" > neon_backup.sql
+
+# Import to Local
+psql -U postgres -p 5433 -d nexafund < neon_backup.sql
+```
+
+**5. Setup Database**
+```powershell
+npm install
+npm run db:setup
+npm run dev
+```
+
+✅ Backend running on http://localhost:5050
+
+---
+
+### Option B: Neon Cloud PostgreSQL
+
+**1. Get Cloud Database (2 minutes)**
 1. Visit [neon.tech](https://neon.tech)
 2. Sign up with GitHub/Google (free, no credit card)
 3. Create new project → Copy connection string
 4. Format: `postgresql://user:pass@ep-xxx.us-east-1.aws.neon.tech/neondb?sslmode=require`
 
-### Step 2: Backend Setup (3 minutes)
+**2. Backend Setup (3 minutes)
 
 ```powershell
 cd backend
@@ -81,8 +137,13 @@ All accounts use password: **`Test@123`**
 
 ### Backend (.env)
 ```env
-# Database (Get from Neon)
-DATABASE_URL=postgresql://user:pass@ep-xxx.neon.tech/neondb?sslmode=require
+# Database - Choose ONE option below:
+
+# Option A: Local PostgreSQL (Fast)
+DATABASE_URL="postgresql://postgres:YOUR_PASSWORD@localhost:YOUR_PORT/nexafund"
+
+# Option B: Neon Cloud (Remote)
+# DATABASE_URL="postgresql://user:pass@ep-xxx.neon.tech/neondb?sslmode=require"
 
 # JWT Secret (Generate: node -e "console.log(require('crypto').randomBytes(64).toString('hex'))")
 JWT_SECRET=your-64-character-random-string-here
@@ -118,8 +179,9 @@ npm run dev
 ```
 
 ### Database connection failed
-- Check DATABASE_URL format in `.env`
-- Ensure SSL is included: `?sslmode=require`
+- **Local PostgreSQL:** Check username, password, and port match your installation
+- **Neon Cloud:** Ensure SSL is included: `?sslmode=require`
+- Verify PostgreSQL service is running (for local)
 
 ### Frontend can't connect
 - Verify backend is running on port 5050

@@ -13,15 +13,16 @@ Enterprise-level crowdfunding platform with ML-powered personalized recommendati
 **Setup Time:** 5-10 minutes  
 **Detailed Guide:** See [SETUP.md](SETUP.md)
 
-### 1. Get Cloud Database (2 min)
-- Sign up at [neon.tech](https://neon.tech) (free, no credit card)
-- Create project and copy connection string
+### 1. Database Setup (Choose One)
+**Option A:** Local PostgreSQL 18 ⚡ (Fast, recommended for demos - currently active)  
+**Option B:** Neon Cloud ☁️ (Remote, for multi-device testing)  
+See [SETUP.md](SETUP.md) for setup instructions. For terminal access: [Local-PostgreSQL-Access.md](docs/Local-PostgreSQL-Access.md)
 
 ### 2. Backend (3 min)
 ```powershell
 cd backend
 copy .env.example .env
-# Edit .env with your DATABASE_URL and JWT_SECRET
+# Edit .env with your DATABASE_URL (local or Neon) and JWT_SECRET
 npm install
 npm run db:setup
 npm run dev
@@ -56,6 +57,12 @@ cd "RS(Nexa Fund)/RecomendationSystem(NF)"
 - Add Tenderly VTN network (Chain ID: 73571)
 - Request test POL from Tenderly faucet
 - Connect wallet on campaign pages
+
+### 7. Database Access (For Debugging)
+**Terminal Access:** See [docs/Local-PostgreSQL-Access.md](docs/Local-PostgreSQL-Access.md)
+- Direct SQL queries for debugging
+- Data editing and cleanup commands
+- Backup and restore procedures
 
 ---
 
@@ -180,6 +187,7 @@ npx hardhat run scripts/deploy-realistic-campaign.ts --network tenderlyVTN  # De
 - **[SETUP.md](SETUP.md)** - Complete setup guide with troubleshooting
 - **[docs/TEST_ACCOUNTS.md](docs/TEST_ACCOUNTS.md)** - Test credentials and scenarios
 - **[docs/Wallet-Setup.md](docs/Wallet-Setup.md)** - MetaMask & Tenderly VTN setup
+- **[docs/Local-PostgreSQL-Access.md](docs/Local-PostgreSQL-Access.md)** - Database access & debugging via terminal
 
 ### AI/ML System
 - **[RS(Nexa Fund)/RecomendationSystem(NF)/README.md](RS(Nexa%20Fund)/RecomendationSystem(NF)/README.md)** - ML service setup & architecture
