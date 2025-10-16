@@ -1,53 +1,91 @@
 # Nexa Fund – Development Progress
 
-**Last Updated:** October 16, 2025  
-**Status:** Production-Ready with Robust Payment Flow ✅
+**Last Updated:** October 17, 2025  
+**Status:** V2 Contract Deployed - Testing Phase ✅
 
 ---
 
-## 🚨 Latest: CRITICAL Payment Flow Fix (Oct 16, 2025)
+## 🚨 Latest: V2 Contract Migration Complete (Oct 17, 2025)
 
 # 📊 Progress Tracker - Nexa Fund Platform
 
 ## Latest Updates
 
-### � **#25 - Creator Self-Withdrawal System** (October 2025)
-**Status:** 🚧 IN PROGRESS
+### ✅ **#26 - V2 Contract Migration & Milestone Activation Fix** (October 17, 2025)
+**Status:** ✅ COMPLETE
 
-**Critical Security/UX Issue Identified:**
-- Current system requires **platform admin's private key** to release funds to creators
-- Platform controls all fund releases (centralized, security risk)
-- Creators cannot withdraw their own earned funds
-- Admin would need creator's private key (MAJOR SECURITY FLAW)
+**Issues Resolved:**
 
-**New Architecture - Creator Self-Withdrawal:**
+1. **Frontend Reconciliation References Removed**
+   - Removed `Reconciliation.tsx` and `CreatorWithdraw.tsx` imports from `App.tsx`
+   - Cleaned up reconciliation routes
+   - Removed reconciliation card from `AdminPanel.tsx`
+   - Removed highlight functionality references
 
-1. **Smart Contract Update** (`NexaFundWeightedV2.sol`)
-   - Added `creatorWithdraw(milestoneIndex)` - Creators withdraw using their own wallet
-   - Changed milestone state from `released` → `approved` + `withdrawn`
-   - Added `pendingWithdrawals` counter for approved but not withdrawn funds
-   - Added `getPendingWithdrawals()` view function
-   - Admin can still force withdraw in emergencies via `adminForceWithdraw()`
+2. **First Milestone Auto-Activation**
+   - **Problem:** Milestones created with PENDING status, contributions rejected
+   - **Solution:** First milestone (order: 1) now automatically set to ACTIVE on creation
+   - **Migration:** Created script to activate existing first milestones
+   - **Result:** GreenSpace campaign first milestone activated successfully
 
-2. **Creator Withdrawal Page** (`CreatorWithdraw.tsx`)
-   - Creators enter their own private key (stays in browser)
-   - Shows all approved milestones ready for withdrawal
-   - Individual withdraw buttons per milestone
-   - "Withdraw All" bulk operation
-   - Real-time transaction tracking and confirmation
+**Changes Made:**
 
-3. **Benefits:**
-   - ✅ Decentralized - No platform control over funds
-   - ✅ Secure - Creators hold their own keys
-   - ✅ Self-service - No admin intervention needed
-   - ✅ Emergency backup - Admin can still force release if creator loses key
+1. **Backend - `milestoneService.ts`**
+   ```typescript
+   // First milestone starts as ACTIVE to accept contributions
+   status: milestoneData.order === 1 ? MilestoneStatus.ACTIVE : MilestoneStatus.PENDING
+   ```
+
+2. **Frontend - `App.tsx`**
+   - Removed reconciliation route and import
+
+3. **Frontend - `AdminPanel.tsx`**
+   - Removed reconciliation card
+   - Removed reconciliation navigation logic
+   - Cleaned up highlight-related styling
+
+4. **Migration Script - `activate-first-milestone.ts`**
+   - Activates first milestone for existing campaigns
+   - Used for GreenSpace campaign migration
+
+**Test Campaign - GreenSpace:**
+- Campaign ID: `cmgmu1jq0001jrda41alhy2px`
+- Milestones Created: 3 ($50, $75, $75)
+- First Milestone: "Site Preparation & Initial Setup" - ✅ ACTIVE
+- Ready for contributions
 
 **Next Steps:**
-1. Deploy NexaFundWeightedV2.sol to Tenderly VTN
-2. Generate TypeScript types and ABI
-3. Add route to App.tsx for `/creator/withdraw`
-4. Test full withdrawal flow
-5. Migrate existing campaigns to V2 contract
+1. Test contribution flow with activated milestone
+2. Verify funds flow to contract escrow
+3. Test milestone voting and auto-release
+4. Monitor backend logs for any errors
+
+---
+
+### ✅ **#25 - NexaFundWeightedV2 Contract Deployed** (October 16, 2025)
+**Status:** ✅ COMPLETE
+
+**V2 Contract Features:**
+- Auto-release funds to creator when milestone approved
+- Auto-reject and enable refunds when milestone rejected
+- Backer self-service refund claims
+- Emergency admin functions only (no private key needed)
+
+**Deployment Info:**
+- Contract: `NexaFundWeightedV2.sol`
+- Address: `0xa2878c85037A9D15C56d96CbD90a044e67f1358D`
+- Network: Tenderly VTN (Chain ID: 73571)
+- Admin: `0xDBc0C9a06362C941f4CD2380B88b188b955Ea68a`
+
+**Backend Migration:**
+- Updated `blockchainService.ts` with V2 ABI
+- Removed reconciliation system
+- Updated milestone service for V2 flow
+
+**Frontend Migration:**
+- Updated contract address in `.env`
+- Removed reconciliation pages
+- Cleaned up admin panel
 
 ---
 

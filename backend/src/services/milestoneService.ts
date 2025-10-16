@@ -69,11 +69,14 @@ export class MilestoneService {
       // Create milestones in a transaction
       const milestones = await prisma.$transaction(async (tx) => {
         const createdMilestones = [];
-        for (const milestoneData of milestonesData) {
+        for (let i = 0; i < milestonesData.length; i++) {
+          const milestoneData = milestonesData[i];
           const milestone = await tx.milestone.create({
             data: {
               ...milestoneData,
-              campaignId
+              campaignId,
+              // First milestone (order: 1) starts as ACTIVE to accept contributions
+              status: milestoneData.order === 1 ? MilestoneStatus.ACTIVE : MilestoneStatus.PENDING
             }
           });
           createdMilestones.push(milestone);
