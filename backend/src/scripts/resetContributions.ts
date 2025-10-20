@@ -1,4 +1,4 @@
-import { PrismaClient } from '../generated/prisma';
+import { PrismaClient, Prisma } from '../generated/prisma';
 
 const prisma = new PrismaClient();
 
@@ -74,7 +74,7 @@ async function resetContributions() {
           votingDeadline: null,
           releaseTransactionHash: null,
           adminNotes: null,
-          evidence: null
+          evidence: Prisma.JsonNull
         }
       });
       console.log(`   ✅ Reset milestone: ${milestone.title} (Order ${milestone.order}) → ${newStatus}`);

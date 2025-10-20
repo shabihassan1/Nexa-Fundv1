@@ -111,6 +111,11 @@ cd "RS(Nexa Fund)/RecomendationSystem(NF)"
 - **Network:** Tenderly VTN (Chain ID: 73571, POL currency)
 - **Contract Address:** `0x2428fB67608E04Dc3171f05e212211BBB633f589`
 
+#### POL/USD conversion (temporary note)
+- On-chain escrow uses POL; the UI shows USD for convenience.
+- Frontend converts USD → POL before sending to the contract. If the displayed USD and MetaMask deducted amount look mismatched, it's a conversion issue, not a transfer issue.
+- A proper price oracle + dual storage (USD and POL) is planned; see docs/MONEY_CONVERSION_FIX_PLAN.md for the phased fix.
+
 ---
 
 ## 🛠️ Tech Stack
